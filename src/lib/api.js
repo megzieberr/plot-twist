@@ -5,6 +5,10 @@ import { inferAxes } from './axes.js';
 
 const IMG = 'https://image.tmdb.org/t/p/w342';
 
+// Where the serverless functions live. Empty = same origin (Netlify, dev).
+// On GitHub Pages this points at the functions-only Netlify site.
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 // ---------------------------------------------------------------------------
 // TMDB (movies + series)
 // ---------------------------------------------------------------------------
@@ -13,11 +17,18 @@ let genreCache = {};
 
 async function tmdb(path, params = {}) {
   const qs = new URLSearchParams({ path, ...params });
-  const res = await fetch(`/api/tmdb?${qs}`);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/tmdb?${qs}`);
+  } catch {
+    // Proxy unreachable (not deployed yet / offline) — key must stay server-side.
+    throw new Error(
+      'Movies & Series need the TMDB proxy — it looks like the Netlify API site is not up yet. Anime works right here!'
+    );
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     if (!body) {
-      // No proxy on this deployment (GitHub Pages) — key must stay server-side.
       throw new Error(
         'Movies & Series need the TMDB proxy — they activate with the Netlify deployment. Anime works right here!'
       );
@@ -121,8 +132,8 @@ async function anilist(query, variables) {
     body: payload,
   };
   // Prefer the proxy; fall back to AniList directly (key-free, CORS-open)
-  // on deployments without functions, e.g. GitHub Pages.
-  let res = await fetch('/api/anilist', opts).catch(() => null);
+  // if the proxy is unreachable.
+  let res = await fetch(`${API_BASE}/api/anilist`, opts).catch(() => null);
   if (!res || !res.headers.get('content-type')?.includes('json')) {
     res = await fetch('https://graphql.anilist.co', opts);
   }

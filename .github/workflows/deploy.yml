@@ -30,6 +30,8 @@ jobs:
           # Client-safe: the publishable key is designed for the browser; RLS guards the data.
           VITE_SUPABASE_URL: https://ualigeivktzubtmkdnek.supabase.co
           VITE_SUPABASE_ANON_KEY: sb_publishable_Dk5UW8oSxfFg8IzrD3u30g_MXqLOznY
+          # Functions-only Netlify site that holds the TMDB key
+          VITE_API_BASE: https://plot-twist-api.netlify.app
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
