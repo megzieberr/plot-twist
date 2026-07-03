@@ -66,6 +66,8 @@ function devApiPlugin(env) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
+    // GitHub Pages serves from /plot-twist/; Netlify and dev serve from /.
+    base: process.env.GHPAGES_BASE || '/',
     plugins: [react(), devApiPlugin(env)],
     server: { port: 5201 },
   };

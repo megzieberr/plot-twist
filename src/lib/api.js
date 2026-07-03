@@ -15,7 +15,13 @@ async function tmdb(path, params = {}) {
   const qs = new URLSearchParams({ path, ...params });
   const res = await fetch(`/api/tmdb?${qs}`);
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body = await res.json().catch(() => null);
+    if (!body) {
+      // No proxy on this deployment (GitHub Pages) — key must stay server-side.
+      throw new Error(
+        'Movies & Series need the TMDB proxy — they activate with the Netlify deployment. Anime works right here!'
+      );
+    }
     throw new Error(body.error || `TMDB error ${res.status}`);
   }
   return res.json();
@@ -108,11 +114,18 @@ function recomputeAxes(candidate, keywords) {
 // ---------------------------------------------------------------------------
 
 async function anilist(query, variables) {
-  const res = await fetch('/api/anilist', {
+  const payload = JSON.stringify({ query, variables });
+  const opts = {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    body: payload,
+  };
+  // Prefer the proxy; fall back to AniList directly (key-free, CORS-open)
+  // on deployments without functions, e.g. GitHub Pages.
+  let res = await fetch('/api/anilist', opts).catch(() => null);
+  if (!res || !res.headers.get('content-type')?.includes('json')) {
+    res = await fetch('https://graphql.anilist.co', opts);
+  }
   const data = await res.json();
   if (data.errors) throw new Error(data.errors[0].message);
   return data.data;
