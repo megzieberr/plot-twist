@@ -24,6 +24,7 @@ export default function App() {
   const [rateTarget, setRateTarget] = useState(null); // candidate/title being rated
   const [toast, setToast] = useState(null); // { msg, undo }
   const [showSettings, setShowSettings] = useState(false);
+  const [dataReady, setDataReady] = useState(false); // first load done — Discover must wait for it
 
   useEffect(() => {
     backend.getSession().then(setSession);
@@ -33,6 +34,7 @@ export default function App() {
     const [t, r] = await Promise.all([backend.getTitles(), backend.getRatings()]);
     setTitles(t);
     setRatings(r);
+    setDataReady(true);
   }, []);
 
   useEffect(() => {
@@ -117,6 +119,7 @@ export default function App() {
       {mode === 'discover' && (
         <Discover
           media={media}
+          ready={dataReady}
           ratedTitles={ratedTitles}
           weights={weights}
           likedGenres={likedGenres}

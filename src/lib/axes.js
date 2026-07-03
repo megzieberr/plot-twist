@@ -129,14 +129,16 @@ const RULES = {
     [/thriller/i, 0.3],
   ],
   comfort_nostalgia: [
-    [/feel[- ]?good/i, 0.8],
-    [/heartwarming|wholesome/i, 0.8],
-    [/nostalgia|nostalgic/i, 0.8],
-    [/slice of life|iyashikei/i, 0.6],
+    // Generic genre words kept low: "family"/"friendship" alone must not fire
+    // this axis, or every animated blockbuster tops the deck.
+    [/feel[- ]?good/i, 0.7],
+    [/heartwarming|wholesome/i, 0.6],
+    [/nostalgia|nostalgic/i, 0.7],
+    [/slice of life|iyashikei/i, 0.5],
     [/romantic comedy|romcom/i, 0.5],
-    [/family/i, 0.4],
-    [/christmas|holiday/i, 0.4],
-    [/friendship/i, 0.3],
+    [/family/i, 0.15],
+    [/christmas|holiday/i, 0.3],
+    [/friendship/i, 0.12],
   ],
   prestige_high_craft: [
     [/award[- ]?winning/i, 0.7],
@@ -146,7 +148,8 @@ const RULES = {
     [/auteur|arthouse/i, 0.5],
   ],
   natural_humour: [
-    [/comedy/i, 0.5],
+    // "comedy" as a bare genre is weak evidence — forced humour is also comedy.
+    [/comedy/i, 0.25],
     [/satire|parody/i, 0.6],
     [/dark comedy|black comedy/i, 0.7],
     [/witty|deadpan/i, 0.7],

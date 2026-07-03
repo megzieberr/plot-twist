@@ -35,8 +35,8 @@ const AXIS_MULTIPLIER = {
   mystery_no_spoonfeed: 1.0,
   survival_dystopia: 0.9,
   transformation_arc: 0.9,
-  comfort_nostalgia: 0.8,
-  natural_humour: 0.8,
+  comfort_nostalgia: 0.6,
+  natural_humour: 0.6,
   prestige_high_craft: 0.45, // craft alone does not win (Demon Slayer lesson)
 };
 

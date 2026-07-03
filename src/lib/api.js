@@ -95,6 +95,23 @@ export async function discoverTmdb(kind, pages = 3) {
     }));
   }
   requests.push(tmdb(`trending/${api}/week`));
+  // Popularity skews family/franchise; make sure the content axes have
+  // candidates to fire on: thriller/mystery/sci-fi pages + an acclaimed page.
+  const contentGenres = api === 'movie' ? '53,9648,878' : '9648,80,10765';
+  for (let p = 1; p <= 2; p++) {
+    requests.push(tmdb(`discover/${api}`, {
+      page: String(p),
+      sort_by: 'popularity.desc',
+      with_genres: contentGenres,
+      'vote_count.gte': '200',
+      include_adult: 'false',
+    }));
+  }
+  requests.push(tmdb(`discover/${api}`, {
+    sort_by: 'vote_average.desc',
+    'vote_count.gte': '2000',
+    include_adult: 'false',
+  }));
   const results = (await Promise.all(requests)).flatMap((d) => d.results || []);
   const seen = new Set();
   const unique = results.filter((r) => !seen.has(r.id) && seen.add(r.id));

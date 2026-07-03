@@ -4,11 +4,12 @@ import { scoreCandidate, whyLine, isExcluded } from '../lib/scorer.js';
 
 // Discover: ranked queue of unrated titles pulled live from the APIs.
 // Swipe right = interested, left = not for me, up = watchlist.
-export default function Discover({ media, ratedTitles, weights, likedGenres, onRate }) {
+export default function Discover({ media, ready, ratedTitles, weights, likedGenres, onRate }) {
   const [queue, setQueue] = useState(null); // null = loading
   const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
+    if (!ready) return; // ratings still loading — scoring now would be unpersonalized
     setQueue(null);
     setErr('');
     try {
@@ -29,12 +30,18 @@ export default function Discover({ media, ratedTitles, weights, likedGenres, onR
           ![...ratedNames].some((n) => isSequelOf(c.title, n))
       );
 
-      // TMDB discover results have genres only; fetch keywords for the top
-      // slice so axis inference has real signal to work with.
+      // TMDB discover results have genres only; fetch keywords for the most
+      // promising slice (pre-ranked on genre-level signal) so axis inference
+      // has real signal to work with.
       if (media !== 'anime') {
-        const top = pool.slice(0, 30);
+        pool.sort(
+          (a, b) =>
+            scoreCandidate(b, weights, likedGenres).score -
+            scoreCandidate(a, weights, likedGenres).score
+        );
+        const top = pool.slice(0, 40);
         const enriched = await Promise.all(top.map(enrichTmdb));
-        pool = [...enriched, ...pool.slice(30)];
+        pool = [...enriched, ...pool.slice(40)];
       }
 
       const scored = pool
@@ -51,7 +58,7 @@ export default function Discover({ media, ratedTitles, weights, likedGenres, onR
       setErr(ex.message);
       setQueue([]);
     }
-  }, [media]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [media, ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     load();
