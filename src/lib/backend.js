@@ -116,22 +116,29 @@ class SupabaseBackend {
   }
 
   async upsertTitle(t) {
+    // No .upsert() here: the titles unique index is partial (external_id is
+    // null for manual titles) and Postgres ON CONFLICT cannot infer it (42P10).
+    // Single-user app, so find-then-insert/update has no real race.
+    let existing = null;
     if (t.external_id) {
-      const { data, error } = await this.sb
+      const { data } = await this.sb
         .from('titles')
-        .upsert(t, { onConflict: 'external_source,external_id,media_type' })
         .select()
-        .single();
-      if (error) throw new Error(error.message);
-      return data;
+        .eq('external_source', t.external_source)
+        .eq('external_id', t.external_id)
+        .eq('media_type', t.media_type)
+        .maybeSingle();
+      existing = data;
+    } else {
+      // manual titles: match on title+type
+      const { data } = await this.sb
+        .from('titles')
+        .select()
+        .eq('media_type', t.media_type)
+        .ilike('title', t.title)
+        .maybeSingle();
+      existing = data;
     }
-    // manual titles: match on title+type
-    const { data: existing } = await this.sb
-      .from('titles')
-      .select()
-      .eq('media_type', t.media_type)
-      .ilike('title', t.title)
-      .maybeSingle();
     if (existing) {
       const { data, error } = await this.sb
         .from('titles')

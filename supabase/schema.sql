@@ -20,8 +20,9 @@ create table if not exists titles (
   created_at timestamptz not null default now()
 );
 
--- Partial unique index (a plain UNIQUE constraint would treat NULL external_ids as distinct anyway,
--- but manual titles have no external_id, so scope the uniqueness to API-sourced rows).
+-- Partial unique index (manual titles have no external_id, so uniqueness is scoped
+-- to API-sourced rows). NOTE: Postgres ON CONFLICT cannot infer a partial index
+-- (error 42P10), so the app deliberately uses find-then-insert/update, not upsert.
 create unique index if not exists titles_external_key
   on titles (external_source, external_id, media_type)
   where external_id is not null;

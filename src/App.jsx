@@ -58,32 +58,38 @@ export default function App() {
   // Rate anything: candidate objects (no id yet) are upserted into titles first.
   const rate = useCallback(
     async (item, verdict, note = '') => {
-      let titleRow = item;
-      if (!item.id) {
-        titleRow = await backend.upsertTitle({
-          media_type: item.media_type,
-          external_source: item.external_source || 'manual',
-          external_id: item.external_id || null,
-          title: item.title,
-          year: item.year ?? null,
-          poster_url: item.poster_url || null,
-          overview: item.overview || '',
-          genres: item.genres || [],
-          keywords: item.keywords || [],
-          axes: Array.isArray(item.axes) ? item.axes : Object.keys(item.axes || {}),
-          flags: Array.isArray(item.flags) ? item.flags : Object.keys(item.flags || {}),
+      try {
+        let titleRow = item;
+        if (!item.id) {
+          titleRow = await backend.upsertTitle({
+            media_type: item.media_type,
+            external_source: item.external_source || 'manual',
+            external_id: item.external_id || null,
+            title: item.title,
+            year: item.year ?? null,
+            poster_url: item.poster_url || null,
+            overview: item.overview || '',
+            genres: item.genres || [],
+            keywords: item.keywords || [],
+            axes: Array.isArray(item.axes) ? item.axes : Object.keys(item.axes || {}),
+            flags: Array.isArray(item.flags) ? item.flags : Object.keys(item.flags || {}),
+          });
+        }
+        const ratingRow = await backend.rate(titleRow.id, titleRow.media_type, verdict, note);
+        await reload();
+        setToast({
+          msg: `${titleRow.title} → ${verdict}`,
+          undo: async () => {
+            await backend.unrate(ratingRow.id);
+            await reload();
+          },
         });
+        return ratingRow;
+      } catch (ex) {
+        // A failed save must never be silent — that's how ratings vanish.
+        setToast({ msg: `⚠️ Could not save: ${ex.message}` });
+        return null;
       }
-      const ratingRow = await backend.rate(titleRow.id, titleRow.media_type, verdict, note);
-      await reload();
-      setToast({
-        msg: `${titleRow.title} → ${verdict}`,
-        undo: async () => {
-          await backend.unrate(ratingRow.id);
-          await reload();
-        },
-      });
-      return ratingRow;
     },
     [reload]
   );
