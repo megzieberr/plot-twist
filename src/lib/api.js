@@ -199,23 +199,111 @@ function normalizeAnilist(m) {
 }
 
 export async function searchAnilist(query) {
-  const data = await anilist(
-    `query ($q: String) { Page(perPage: 12) { media(search: $q, type: ANIME) { ${ANI_FIELDS} } } }`,
-    { q: query }
-  );
+  let data;
+  try {
+    data = await anilist(
+      `query ($q: String) { Page(perPage: 12) { media(search: $q, type: ANIME) { ${ANI_FIELDS} } } }`,
+      { q: query }
+    );
+  } catch (ex) {
+    // AniList periodically switches its whole public API off during
+    // instability ("temporarily disabled…"). Kitsu keeps anime working.
+    try {
+      return await searchKitsu(query);
+    } catch {
+      throw ex; // both down — AniList's message is the informative one
+    }
+  }
   return data.Page.media.map(normalizeAnilist);
 }
 
 export async function discoverAnilist(pages = 3) {
   const out = [];
-  for (let p = 1; p <= pages; p++) {
-    const data = await anilist(
-      `query ($p: Int) { Page(page: $p, perPage: 50) {
-        media(type: ANIME, sort: POPULARITY_DESC, format_in: [TV, ONA, MOVIE]) { ${ANI_FIELDS} }
-      } }`,
-      { p }
+  try {
+    for (let p = 1; p <= pages; p++) {
+      const data = await anilist(
+        `query ($p: Int) { Page(page: $p, perPage: 50) {
+          media(type: ANIME, sort: POPULARITY_DESC, format_in: [TV, ONA, MOVIE]) { ${ANI_FIELDS} }
+        } }`,
+        { p }
+      );
+      out.push(...data.Page.media.map(normalizeAnilist));
+    }
+  } catch (ex) {
+    try {
+      return await discoverKitsu(pages);
+    } catch {
+      throw ex;
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Kitsu (anime fallback) — key-free and CORS-open like AniList. Categories
+// stand in for AniList tags (no 0-100 ranks, so inference runs unweighted).
+// Rated-title dedup in Discover still holds across sources because it also
+// matches on title name, not just source:id.
+// ---------------------------------------------------------------------------
+
+async function kitsu(path) {
+  const res = await fetch(`https://kitsu.io/api/edge/${path}`, {
+    headers: { accept: 'application/vnd.api+json' },
+  });
+  if (!res.ok) throw new Error(`Kitsu error ${res.status}`);
+  return res.json();
+}
+
+function kitsuCategoryMap(included) {
+  return Object.fromEntries(
+    (included || [])
+      .filter((x) => x.type === 'categories')
+      .map((x) => [x.id, x.attributes.title])
+  );
+}
+
+function normalizeKitsu(item, catMap) {
+  const a = item.attributes;
+  const categories = (item.relationships?.categories?.data || [])
+    .map((c) => catMap[c.id])
+    .filter(Boolean);
+  const signals = [...categories, a.synopsis || ''];
+  const { axes, flags } = inferAxes(signals);
+  if ((a.episodeCount || 0) > 120) flags.slow_pacing = Math.max(flags.slow_pacing || 0, 0.7);
+  return {
+    external_source: 'kitsu',
+    external_id: String(item.id),
+    media_type: 'anime',
+    title: a.titles?.en || a.canonicalTitle,
+    year: parseInt(a.startDate || '') || null,
+    poster_url: a.posterImage?.large || a.posterImage?.medium || null,
+    overview: (a.synopsis || '').slice(0, 400),
+    genres: categories.slice(0, 4),
+    keywords: categories,
+    axes,
+    flags,
+    quality: Math.min(1, (parseFloat(a.averageRating) || 60) / 100),
+    popularity: a.userCount || 0,
+  };
+}
+
+async function searchKitsu(query) {
+  const data = await kitsu(
+    `anime?filter[text]=${encodeURIComponent(query)}&page[limit]=12&include=categories&fields[categories]=title`
+  );
+  const catMap = kitsuCategoryMap(data.included);
+  return (data.data || []).map((m) => normalizeKitsu(m, catMap));
+}
+
+async function discoverKitsu(pages = 3) {
+  const out = [];
+  // Kitsu caps page size at 20 (AniList allows 50), so fetch more pages.
+  for (let p = 0; p < pages * 2; p++) {
+    const data = await kitsu(
+      `anime?sort=-userCount&filter[subtype]=TV,ONA,movie&page[limit]=20&page[offset]=${p * 20}&include=categories&fields[categories]=title`
     );
-    out.push(...data.Page.media.map(normalizeAnilist));
+    const catMap = kitsuCategoryMap(data.included);
+    out.push(...(data.data || []).map((m) => normalizeKitsu(m, catMap)));
   }
   return out;
 }
