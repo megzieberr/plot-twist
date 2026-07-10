@@ -1,12 +1,33 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { discoverTmdb, discoverAnilist, enrichTmdb } from '../lib/api.js';
 import { scoreCandidate, whyLine, isExcluded } from '../lib/scorer.js';
+import { titleMoodPos, affinity, blendMood } from '../lib/mood.js';
+import MoodPad from './MoodPad.jsx';
 
 // Discover: ranked queue of unrated titles pulled live from the APIs.
 // Swipe right = interested, left = not for me, up = watchlist.
 export default function Discover({ media, ready, ratedTitles, weights, likedGenres, onRate }) {
   const [queue, setQueue] = useState(null); // null = loading
   const [err, setErr] = useState('');
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [moodDot, setMoodDot] = useState(null); // null = neutral / inactive
+
+  // Fresh section = fresh mood (start collapsed + neutral).
+  useEffect(() => {
+    setMoodOpen(false);
+    setMoodDot(null);
+  }, [media]);
+
+  // The dot re-ranks the deck the same 0.6 taste / 0.4 mood way as the watchlist.
+  const deck = useMemo(() => {
+    if (!queue || !moodDot || queue.length < 2) return queue;
+    const scores = queue.map((c) => c.score);
+    const min = Math.min(...scores);
+    const max = Math.max(...scores);
+    const nb = (s) => (max > min ? (s - min) / (max - min) : 1);
+    const fit = (c) => blendMood(nb(c.score), affinity(moodDot, titleMoodPos(c)));
+    return [...queue].sort((a, b) => fit(b) - fit(a));
+  }, [queue, moodDot]);
 
   const load = useCallback(async () => {
     if (!ready) return; // ratings still loading — scoring now would be unpersonalized
@@ -87,7 +108,18 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
       </div>
     );
 
-  return <SwipeDeck queue={queue} onSwipe={handleSwipe} />;
+  return (
+    <>
+      <MoodPad
+        open={moodOpen}
+        dot={moodDot}
+        onToggle={() => setMoodOpen((o) => !o)}
+        onChange={setMoodDot}
+        onReset={() => setMoodDot(null)}
+      />
+      <SwipeDeck queue={deck} onSwipe={handleSwipe} />
+    </>
+  );
 }
 
 // Seasons/sequels of an already-rated show are not new discoveries:
