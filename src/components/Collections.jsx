@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import TitleRow from './TitleRow.jsx';
+import MoodPad from './MoodPad.jsx';
 import { scoreStoredTitle } from '../lib/scorer.js';
 import { qualityMap, getCachedDetail } from '../lib/detailCache.js';
 import { getDetails } from '../lib/api.js';
 import { isLocalMode } from '../lib/backend.js';
+import { titleMoodPos, affinity, blendMood } from '../lib/mood.js';
 
 const VERDICT_TABS = ['liked', 'watchlist', 'interested', 'meh', 'skipped', 'disliked', 'avoid'];
 // Verdict tabs where match-based ordering is meaningful (unwatched taste signal).
@@ -15,9 +17,12 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
   const [sort, setSort] = useState(() => localStorage.getItem(SORT_KEY) || 'best');
   const [genre, setGenre] = useState(null); // selected genre filter (watchlist only)
   const [tick, setTick] = useState(0); // bumps when background hydration caches new quality
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [moodDot, setMoodDot] = useState(null); // null = neutral / inactive
 
   const rankable = RANKABLE.has(verdict);
   const showGenres = verdict === 'watchlist';
+  const moodActive = showGenres && moodDot != null;
 
   useEffect(() => {
     localStorage.setItem(SORT_KEY, sort);
@@ -27,6 +32,13 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
   useEffect(() => {
     setGenre(null);
   }, [verdict, media]);
+
+  // Start each section collapsed + neutral: yesterday's mood must not silently
+  // shape a different list.
+  useEffect(() => {
+    setMoodOpen(false);
+    setMoodDot(null);
+  }, [media]);
 
   const counts = useMemo(() => {
     const c = {};
@@ -54,31 +66,51 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
     return Object.entries(c).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [scored, showGenres]);
 
-  // Filter -> sort. Best-match uses score (ties: newer first); Recent uses date.
-  const items = useMemo(() => {
-    let list = genre ? scored.filter((t) => (t.genres || []).includes(genre)) : scored;
+  // Filter -> (optionally blend mood) -> sort, and derive the match %. Match %
+  // is min-max normalised within the *displayed* list, so it is honestly
+  // relative (top of this list = 100%). All-equal / single item -> 100%.
+  const { items, matchPct } = useMemo(() => {
+    const list = genre ? scored.filter((t) => (t.genres || []).includes(genre)) : scored;
     const byRecency = (a, b) => (b.rated_at || '').localeCompare(a.rated_at || '');
-    if (rankable && sort === 'best') {
-      list = [...list].sort((a, b) => b._score - a._score || byRecency(a, b));
-    } else {
-      list = [...list].sort(byRecency);
-    }
-    return list;
-  }, [scored, genre, rankable, sort]);
+    if (list.length === 0) return { items: [], matchPct: null };
 
-  // Match % — min-max normalised within the *displayed* list, so it is honestly
-  // relative (top of this list = 100%). All-equal or single item -> 100%.
-  const matchPct = useMemo(() => {
-    if (!rankable || items.length === 0) return null;
-    const scores = items.map((t) => t._score);
-    const min = Math.min(...scores);
-    const max = Math.max(...scores);
-    const map = new Map();
-    for (const t of items) {
-      map.set(t.id, max > min ? Math.round(((t._score - min) / (max - min)) * 100) : 100);
+    // Normalise base match score across this filtered list (0..1).
+    const scores = list.map((t) => t._score);
+    const sMin = Math.min(...scores);
+    const sMax = Math.max(...scores);
+    const normBase = (s) => (sMax > sMin ? (s - sMin) / (sMax - sMin) : 1);
+
+    const ranked = list.map((t) => {
+      const nb = normBase(t._score);
+      const final = moodActive ? blendMood(nb, affinity(moodDot, titleMoodPos(t))) : nb;
+      return { t, final };
+    });
+
+    if (moodActive) {
+      ranked.sort((a, b) => b.final - a.final || byRecency(a.t, b.t));
+    } else if (rankable && sort === 'best') {
+      ranked.sort((a, b) => b.t._score - a.t._score || byRecency(a.t, b.t));
+    } else {
+      ranked.sort((a, b) => byRecency(a.t, b.t));
     }
-    return map;
-  }, [items, rankable]);
+
+    const outItems = ranked.map((r) => r.t);
+
+    let map = null;
+    if (moodActive) {
+      const fs = ranked.map((r) => r.final);
+      const fMin = Math.min(...fs);
+      const fMax = Math.max(...fs);
+      map = new Map(
+        ranked.map((r) => [r.t.id, fMax > fMin ? Math.round(((r.final - fMin) / (fMax - fMin)) * 100) : 100])
+      );
+    } else if (rankable) {
+      map = new Map(
+        outItems.map((t) => [t.id, sMax > sMin ? Math.round(((t._score - sMin) / (sMax - sMin)) * 100) : 100])
+      );
+    }
+    return { items: outItems, matchPct: map };
+  }, [scored, genre, rankable, sort, moodActive, moodDot]);
 
   // Quietly warm the detail cache for the top of the watchlist so match scores
   // pick up real vote averages without her opening each title. Skip in local
@@ -119,6 +151,16 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
           </button>
         ))}
       </div>
+
+      {showGenres && (
+        <MoodPad
+          open={moodOpen}
+          dot={moodDot}
+          onToggle={() => setMoodOpen((o) => !o)}
+          onChange={setMoodDot}
+          onReset={() => setMoodDot(null)}
+        />
+      )}
 
       {rankable && (
         <div className="sort-row">
@@ -165,6 +207,7 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
           key={t.id}
           item={t}
           match={matchPct ? matchPct.get(t.id) : null}
+          matchLabel={moodActive ? 'mood match' : 'match'}
           onClick={() => onPick(t, { rank: rankable })}
         />
       ))}

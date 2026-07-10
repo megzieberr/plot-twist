@@ -584,6 +584,102 @@ input:focus, select:focus, textarea:focus {
 }
 .genre-row { margin-top: 2px; }
 
+/* ---------- mood pad ---------- */
+
+.moodpad {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.moodpad-head {
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.moodpad-caret { color: var(--ink-faint); }
+.moodpad-body { padding: 4px 14px 14px; }
+.moodpad-square {
+  position: relative;
+  width: min(78vw, 300px);
+  aspect-ratio: 1;
+  margin: 8px auto 6px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 15% 85%, rgba(255, 200, 87, 0.14), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(148, 61, 255, 0.2), transparent 45%),
+    var(--bg-2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+}
+.moodpad-square.active { border-color: rgba(33, 230, 193, 0.5); }
+.mp-corner {
+  position: absolute;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+  max-width: 45%;
+  line-height: 1.2;
+}
+.mp-corner.tl { top: 8px; left: 10px; }
+.mp-corner.tr { top: 8px; right: 10px; text-align: right; }
+.mp-corner.bl { bottom: 8px; left: 10px; }
+.mp-corner.br { bottom: 8px; right: 10px; text-align: right; }
+.mp-axis {
+  position: absolute;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.mp-axis-x { bottom: 50%; left: 50%; transform: translate(-50%, 50%); }
+.mp-axis-y { top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+.mp-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--neon-2);
+  border: 2px solid #fff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 16px 4px rgba(33, 230, 193, 0.7);
+  pointer-events: none;
+  transition: box-shadow 0.15s;
+}
+.mp-dot.idle {
+  background: var(--ink-faint);
+  box-shadow: none;
+  opacity: 0.6;
+}
+.moodpad-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+}
+.mp-reset {
+  background: none;
+  border: 0;
+  color: var(--neon-2);
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ---------- watchlist sort toggle ---------- */
 
 .sort-row {

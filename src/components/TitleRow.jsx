@@ -28,7 +28,9 @@ export default function TitleRow({ item, onClick, showAxes = true, match = null,
       </div>
       <div className="t-right">
         {match != null && (
-          <span className="match-chip" title={matchLabel || 'match'}>{match}%</span>
+          <span className="match-chip" title={matchLabel || 'match'}>
+            {matchLabel === 'mood match' ? '🎭 ' : ''}{match}%
+          </span>
         )}
         {item.verdict && <span className={`verdict-pill v-${item.verdict}`}>{item.verdict}</span>}
       </div>
