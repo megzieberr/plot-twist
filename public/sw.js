@@ -1,7 +1,7 @@
 // Plot Twist service worker — app shell cache so the installed PWA opens
 // instantly. API calls always go to the network. Paths are resolved against
 // the SW's own location so this works at / (Netlify) and /plot-twist/ (Pages).
-const CACHE = 'plot-twist-v4';
+const CACHE = 'plot-twist-v5';
 const BASE = new URL('./', self.location).pathname;
 
 self.addEventListener('install', (e) => {

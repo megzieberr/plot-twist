@@ -122,6 +122,25 @@ export function scoreCandidate(candidate, weights, likedGenres = new Set()) {
   };
 }
 
+// Score a *stored* title row with the same machinery Discover uses on live
+// candidates. Stored rows differ in two ways: axes/flags are arrays (the
+// per-axis confidences were dropped at save time) and there is no quality
+// (vote average) column. So: arrays -> flat {key: 0.7}, and quality is looked
+// up from the detail cache (qualityMap: {`source:id` -> 0..1}) when a title has
+// been opened, else scoreCandidate's neutral 0.5 default applies. Returns the
+// same {score, contributions, flagNotes} shape, so whyLine() works unchanged.
+export function scoreStoredTitle(t, weights, likedGenres = new Set(), qualityMap = {}) {
+  const arr = (v) => (Array.isArray(v) ? v : Object.keys(v || {}));
+  const toObj = (list) => Object.fromEntries(list.map((k) => [k, 0.7]));
+  const key = t.external_source && t.external_id ? `${t.external_source}:${t.external_id}` : null;
+  const quality = key != null && typeof qualityMap[key] === 'number' ? qualityMap[key] : undefined;
+  return scoreCandidate(
+    { axes: toObj(arr(t.axes)), flags: toObj(arr(t.flags)), genres: t.genres || [], quality },
+    weights,
+    likedGenres
+  );
+}
+
 // The point of the app: name the axes a recommendation scored on.
 export function whyLine(result, candidate) {
   const top = result.contributions.filter((c) => c.value > 0.02).slice(0, 3);

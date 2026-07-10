@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getDetails } from '../lib/api.js';
 import { AXES } from '../lib/axes.js';
-import { scoreCandidate, whyLine } from '../lib/scorer.js';
-import { getCachedDetail } from '../lib/detailCache.js';
+import { scoreStoredTitle, whyLine } from '../lib/scorer.js';
+import { qualityMap } from '../lib/detailCache.js';
 
 const TYPE_EMOJI = { movie: '🎬', series: '📺', anime: '⛩️' };
 const SOURCE_LABEL = { tmdb: 'TMDB', anilist: 'AniList', kitsu: 'Kitsu' };
@@ -12,7 +12,6 @@ const SOURCE_LABEL = { tmdb: 'TMDB', anilist: 'AniList', kitsu: 'Kitsu' };
 // so a long watchlist becomes a "where do I start" instead of a wall of posters.
 export default function OverviewSheet({ item, onClose, onRate, weights, likedGenres, showRank }) {
   const [detail, setDetail] = useState(null); // null = still fetching
-  const cached = useMemo(() => getCachedDetail(item), [item]);
 
   useEffect(() => {
     let alive = true;
@@ -26,12 +25,12 @@ export default function OverviewSheet({ item, onClose, onRate, weights, likedGen
   const axes = Array.isArray(item.axes) ? item.axes : Object.keys(item.axes || {});
 
   // "Why it ranks" — the app's soul. Only on the watchlist, only with weights.
+  // detail in the deps so it recomputes once a fresh fetch caches real quality.
   const rank = useMemo(() => {
     if (!showRank || !weights) return null;
-    const adapted = adaptStored(item, cached);
-    const res = scoreCandidate(adapted, weights, likedGenres || new Set());
-    return { line: whyLine(res, adapted), contributions: res.contributions };
-  }, [item, weights, likedGenres, showRank, cached]);
+    const res = scoreStoredTitle(item, weights, likedGenres || new Set(), qualityMap());
+    return { line: whyLine(res) };
+  }, [item, weights, likedGenres, showRank, detail]);
 
   const typeLine = [item.year || '—', item.media_type, ...(item.genres || []).slice(0, 2)]
     .filter(Boolean)
@@ -162,20 +161,6 @@ function Reviews({ detail }) {
       ))}
     </>
   );
-}
-
-// Stored rows keep axes/flags as arrays; scoreCandidate wants {key: confidence}.
-// Stored rows lost the original confidences, so use a flat 0.7. Quality comes
-// from the detail cache when a fetch has populated it, else scoreCandidate's 0.5.
-function adaptStored(item, cached) {
-  const arr = (v) => (Array.isArray(v) ? v : Object.keys(v || {}));
-  const toObj = (list) => Object.fromEntries(list.map((k) => [k, 0.7]));
-  return {
-    ...item,
-    axes: toObj(arr(item.axes)),
-    flags: toObj(arr(item.flags)),
-    quality: cached && typeof cached.quality === 'number' ? cached.quality : undefined,
-  };
 }
 
 function fmtVotes(n) {

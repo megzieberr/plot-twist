@@ -3,7 +3,7 @@ import { AXES } from '../lib/axes.js';
 
 const TYPE_EMOJI = { movie: '🎬', series: '📺', anime: '⛩️' };
 
-export default function TitleRow({ item, onClick, showAxes = true }) {
+export default function TitleRow({ item, onClick, showAxes = true, match = null, matchLabel }) {
   const axes = Array.isArray(item.axes) ? item.axes : Object.keys(item.axes || {});
   return (
     <div className="title-row" onClick={onClick}>
@@ -26,7 +26,12 @@ export default function TitleRow({ item, onClick, showAxes = true }) {
           </div>
         )}
       </div>
-      {item.verdict && <span className={`verdict-pill v-${item.verdict}`}>{item.verdict}</span>}
+      <div className="t-right">
+        {match != null && (
+          <span className="match-chip" title={matchLabel || 'match'}>{match}%</span>
+        )}
+        {item.verdict && <span className={`verdict-pill v-${item.verdict}`}>{item.verdict}</span>}
+      </div>
     </div>
   );
 }
