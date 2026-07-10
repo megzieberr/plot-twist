@@ -2,6 +2,7 @@
 // production, Vite dev middleware locally) so no keys ship in the bundle.
 
 import { inferAxes } from './axes.js';
+import { getCachedDetail, putCachedDetail } from './detailCache.js';
 
 const IMG = 'https://image.tmdb.org/t/p/w342';
 
@@ -311,6 +312,194 @@ async function discoverKitsu(pages = 3) {
 export async function searchAny(mediaType, query) {
   if (mediaType === 'anime') return searchAnilist(query);
   return searchTmdb(mediaType, query);
+}
+
+// ---------------------------------------------------------------------------
+// Title details (Overview sheet + watchlist quality) — the live facts the
+// stored rows drop: public rating, vote count, release date, runtime, full
+// overview, top reviews. Normalised across TMDB / AniList / Kitsu into one
+// shape. Manual rows and proxy-down both degrade to stored data (never blank).
+//
+//   { source, note, quality (0..1|null), rating10 (0..10|null), vote_count,
+//     release_date, runtime, episodes, overview, moreUrl,
+//     reviews: [{ author, score (0..10|null), excerpt, url }] }
+// ---------------------------------------------------------------------------
+
+export async function getDetails(item) {
+  const src = item.external_source;
+  if (!item.external_id || !src || src === 'manual') {
+    return storedDetail(item, 'manual', 'Manual entry — no live data.');
+  }
+  try {
+    if (src === 'tmdb') return await tmdbDetails(item);
+    if (src === 'anilist') return await anilistDetails(item);
+    if (src === 'kitsu') return await kitsuDetails(item);
+  } catch (ex) {
+    return storedDetail(item, 'stored', friendlyOffline(ex));
+  }
+  return storedDetail(item, 'stored', null);
+}
+
+function friendlyOffline(ex) {
+  const m = ex?.message || '';
+  if (/proxy|Netlify/i.test(m)) return 'Live data unavailable right now — showing what we have.';
+  return 'Could not reach the live source — showing what we have.';
+}
+
+// Fallback: render whatever the stored row + cache already hold.
+function storedDetail(item, source, note) {
+  const c = getCachedDetail(item) || {};
+  return {
+    source,
+    note,
+    quality: typeof item.quality === 'number' ? item.quality : c.quality ?? null,
+    rating10: c.rating10 ?? null,
+    vote_count: c.vote_count ?? null,
+    release_date: c.release_date ?? (item.year ? String(item.year) : null),
+    runtime: c.runtime ?? null,
+    episodes: c.episodes ?? null,
+    overview: item.overview || '',
+    reviews: [],
+    moreUrl: publicUrl(item),
+  };
+}
+
+function publicUrl(item) {
+  const id = item.external_id;
+  if (!id) return null;
+  if (item.external_source === 'tmdb') {
+    return `https://www.themoviedb.org/${item.media_type === 'movie' ? 'movie' : 'tv'}/${id}`;
+  }
+  if (item.external_source === 'anilist') return `https://anilist.co/anime/${id}`;
+  if (item.external_source === 'kitsu') return `https://kitsu.io/anime/${id}`;
+  return null;
+}
+
+function clip(s, n) {
+  const t = (s || '').trim();
+  return t.length > n ? t.slice(0, n).trimEnd() + '…' : t;
+}
+
+async function tmdbDetails(item) {
+  const api = item.media_type === 'movie' ? 'movie' : 'tv';
+  const id = item.external_id;
+  const [detail, rev] = await Promise.all([
+    tmdb(`${api}/${id}`),
+    tmdb(`${api}/${id}/reviews`).catch(() => ({ results: [] })),
+  ]);
+  const isMovie = api === 'movie';
+  const rating10 = detail.vote_average || null;
+  const quality = rating10 != null ? Math.min(1, rating10 / 10) : null;
+  const release_date = (isMovie ? detail.release_date : detail.first_air_date) || null;
+  const runtime = isMovie ? detail.runtime || null : detail.episode_run_time?.[0] ?? null;
+  const episodes = isMovie ? null : detail.number_of_episodes ?? null;
+  const reviews = (rev.results || []).slice(0, 3).map((r) => ({
+    author: r.author || r.author_details?.username || 'TMDB reviewer',
+    score: r.author_details?.rating ?? null, // already 0..10
+    excerpt: clip(r.content, 220),
+    url: r.url || null,
+  }));
+  const out = {
+    source: 'tmdb',
+    note: null,
+    quality,
+    rating10,
+    vote_count: detail.vote_count ?? null,
+    release_date: release_date || (item.year ? String(item.year) : null),
+    runtime,
+    episodes,
+    overview: detail.overview || item.overview || '',
+    reviews,
+    moreUrl: publicUrl(item),
+  };
+  cacheFacts(item, out);
+  return out;
+}
+
+const ANI_DETAIL_QUERY = `query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    averageScore
+    episodes
+    duration
+    startDate { year month day }
+    description(asHtml: false)
+    siteUrl
+    reviews(sort: RATING_DESC, perPage: 3) {
+      nodes { summary score user { name } }
+    }
+  }
+}`;
+
+async function anilistDetails(item) {
+  const data = await anilist(ANI_DETAIL_QUERY, { id: Number(item.external_id) });
+  const m = data.Media || {};
+  const rating10 = m.averageScore != null ? m.averageScore / 10 : null;
+  const quality = m.averageScore != null ? Math.min(1, m.averageScore / 100) : null;
+  const d = m.startDate;
+  const release_date = d?.year
+    ? [d.year, d.month, d.day].filter((x) => x != null).map(pad2).join('-')
+    : item.year
+      ? String(item.year)
+      : null;
+  const reviews = (m.reviews?.nodes || []).slice(0, 3).map((r) => ({
+    author: r.user?.name || 'AniList reviewer',
+    score: r.score != null ? r.score / 10 : null, // AniList review score is /100
+    excerpt: clip(stripHtml(r.summary || ''), 220),
+    url: null,
+  }));
+  const out = {
+    source: 'anilist',
+    note: null,
+    quality,
+    rating10,
+    vote_count: null,
+    release_date,
+    runtime: m.duration ?? null,
+    episodes: m.episodes ?? null,
+    overview: stripHtml(m.description || '') || item.overview || '',
+    reviews,
+    moreUrl: m.siteUrl || publicUrl(item),
+  };
+  cacheFacts(item, out);
+  return out;
+}
+
+async function kitsuDetails(item) {
+  const data = await kitsu(`anime/${item.external_id}`);
+  const a = data.data?.attributes || {};
+  const avg = parseFloat(a.averageRating); // Kitsu is 0..100
+  const rating10 = isFinite(avg) ? avg / 10 : null;
+  const quality = isFinite(avg) ? Math.min(1, avg / 100) : null;
+  const out = {
+    source: 'kitsu',
+    note: 'Reviews unavailable for Kitsu titles.',
+    quality,
+    rating10,
+    vote_count: a.userCount ?? null,
+    release_date: a.startDate || (item.year ? String(item.year) : null),
+    runtime: a.episodeLength ?? null,
+    episodes: a.episodeCount ?? null,
+    overview: a.synopsis || item.overview || '',
+    reviews: [],
+    moreUrl: a.slug ? `https://kitsu.io/anime/${a.slug}` : publicUrl(item),
+  };
+  cacheFacts(item, out);
+  return out;
+}
+
+function cacheFacts(item, out) {
+  putCachedDetail(item, {
+    quality: out.quality,
+    rating10: out.rating10,
+    vote_count: out.vote_count,
+    release_date: out.release_date,
+    runtime: out.runtime,
+    episodes: out.episodes,
+  });
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
 }
 
 function stripHtml(s) {

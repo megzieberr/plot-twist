@@ -283,6 +283,103 @@ input:focus, select:focus, textarea:focus {
 .verdict-btn span { display: block; font-size: 1.3rem; margin-bottom: 4px; }
 .verdict-btn:active { transform: scale(0.97); }
 
+/* ---------- overview sheet ---------- */
+
+.sheet.ov {
+  max-height: 88dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.ov-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.ov-poster {
+  width: 92px;
+  height: 138px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--card-2);
+  flex-shrink: 0;
+}
+.ov-poster-fb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+}
+.ov-title { margin: 2px 0 4px; font-size: 1.25rem; line-height: 1.2; }
+.ov-type { color: var(--ink-dim); font-size: 0.8rem; margin-bottom: 8px; }
+
+.ov-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 4px;
+}
+.ov-chip {
+  background: var(--bg-2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ov-chip-dim, .ov-chip-load { color: var(--ink-faint); font-weight: 600; }
+
+.ov-section { margin-top: 16px; }
+.ov-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.ov-plot { margin: 0; color: var(--ink-dim); font-size: 0.9rem; line-height: 1.5; }
+.ov-axes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+.ov-review {
+  background: var(--bg-2);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.ov-review-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+.ov-review-score { color: var(--gold); font-weight: 700; font-size: 0.8rem; }
+.ov-review-body { color: var(--ink-dim); font-size: 0.84rem; line-height: 1.45; }
+.ov-review-empty { color: var(--ink-faint); font-size: 0.84rem; }
+.ov-more {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--neon-2);
+  font-weight: 700;
+  font-size: 0.84rem;
+  text-decoration: none;
+}
+.ov-note {
+  margin-top: 14px;
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+.ov-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.ov-actions .btn { flex: 1; }
+
 /* ---------- discover deck ---------- */
 
 .deck-wrap {

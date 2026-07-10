@@ -7,6 +7,7 @@ import Discover from './components/Discover.jsx';
 import Collections from './components/Collections.jsx';
 import Settings from './components/Settings.jsx';
 import RateSheet from './components/RateSheet.jsx';
+import OverviewSheet from './components/OverviewSheet.jsx';
 import Toast from './components/Toast.jsx';
 
 const MEDIA = [
@@ -22,6 +23,7 @@ export default function App() {
   const [titles, setTitles] = useState([]);
   const [ratings, setRatings] = useState([]);
   const [rateTarget, setRateTarget] = useState(null); // candidate/title being rated
+  const [overview, setOverview] = useState(null); // { item, showRank } — detail sheet
   const [toast, setToast] = useState(null); // { msg, undo }
   const [showSettings, setShowSettings] = useState(false);
   const [dataReady, setDataReady] = useState(false); // first load done — Discover must wait for it
@@ -94,6 +96,12 @@ export default function App() {
     [reload]
   );
 
+  // Tapping a title anywhere opens the Overview sheet; rating is a button inside
+  // it. opts.rank turns on the "why it ranks" block (watchlist only).
+  const openOverview = useCallback((item, opts = {}) => {
+    setOverview({ item, showRank: !!opts.rank });
+  }, []);
+
   if (session === undefined) return <div className="spinner" />;
   if (!session) return <Login onLogin={setSession} />;
 
@@ -120,7 +128,7 @@ export default function App() {
       </nav>
 
       {mode === 'library' && (
-        <Library media={media} ratedTitles={ratedTitles} onPick={setRateTarget} />
+        <Library media={media} ratedTitles={ratedTitles} onPick={openOverview} />
       )}
       {mode === 'discover' && (
         <Discover
@@ -133,7 +141,13 @@ export default function App() {
         />
       )}
       {mode === 'collections' && (
-        <Collections media={media} ratedTitles={ratedTitles} onPick={setRateTarget} />
+        <Collections
+          media={media}
+          ratedTitles={ratedTitles}
+          onPick={openOverview}
+          weights={weights}
+          likedGenres={likedGenres}
+        />
       )}
 
       <nav className="bottom-nav">
@@ -147,6 +161,20 @@ export default function App() {
           <span className="ico">🗂️</span>Collections
         </button>
       </nav>
+
+      {overview && (
+        <OverviewSheet
+          item={overview.item}
+          showRank={overview.showRank}
+          weights={weights}
+          likedGenres={likedGenres}
+          onClose={() => setOverview(null)}
+          onRate={(item) => {
+            setOverview(null);
+            setRateTarget(item);
+          }}
+        />
+      )}
 
       {rateTarget && (
         <RateSheet

@@ -5,6 +5,8 @@ const VERDICT_TABS = ['liked', 'watchlist', 'interested', 'meh', 'skipped', 'dis
 
 export default function Collections({ media, ratedTitles, onPick }) {
   const [verdict, setVerdict] = useState('liked');
+  // "Why it ranks" is meaningful for titles she hasn't watched yet.
+  const showRank = verdict === 'watchlist' || verdict === 'interested';
 
   const counts = useMemo(() => {
     const c = {};
@@ -34,7 +36,7 @@ export default function Collections({ media, ratedTitles, onPick }) {
       </div>
       {items.length === 0 && <div className="empty">Nothing in “{verdict}” for this section yet.</div>}
       {items.map((t) => (
-        <TitleRow key={t.id} item={t} onClick={() => onPick(t)} />
+        <TitleRow key={t.id} item={t} onClick={() => onPick(t, { rank: showRank })} />
       ))}
     </div>
   );

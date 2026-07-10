@@ -8,7 +8,7 @@ const ALLOWED = [
   /^discover\/(movie|tv)$/,
   /^search\/(movie|tv|multi)$/,
   /^(movie|tv)\/\d+$/,
-  /^(movie|tv)\/\d+\/(keywords|recommendations|similar)$/,
+  /^(movie|tv)\/\d+\/(keywords|recommendations|similar|reviews)$/,
   /^genre\/(movie|tv)\/list$/,
   /^trending\/(movie|tv)\/(day|week)$/,
 ];
