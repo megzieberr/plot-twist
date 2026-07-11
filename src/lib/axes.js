@@ -126,7 +126,9 @@ const RULES = {
     [/cryptic|enigma/i, 0.7],
     [/slow burn mystery/i, 0.7],
     [/secret organization|secret society/i, 0.5],
-    [/thriller/i, 0.3],
+    // Below the 0.25 axis threshold on purpose: the bare "Thriller" genre must
+    // not fire this axis alone, or the whole Discover deck goes thriller.
+    [/thriller/i, 0.18],
   ],
   comfort_nostalgia: [
     // Generic genre words kept low: "family"/"friendship" alone must not fire

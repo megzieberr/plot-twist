@@ -613,56 +613,84 @@ input:focus, select:focus, textarea:focus {
   width: min(78vw, 300px);
   aspect-ratio: 1;
   margin: 8px auto 6px;
-  border-radius: 16px;
+  border-radius: 18px;
+  /* One colour wash per corner mood: gold=cozy, pink=dark, teal=clever, violet=mind-bender */
   background:
-    radial-gradient(circle at 15% 85%, rgba(255, 200, 87, 0.14), transparent 45%),
-    radial-gradient(circle at 85% 15%, rgba(148, 61, 255, 0.2), transparent 45%),
+    radial-gradient(circle at 0% 100%, rgba(255, 200, 87, 0.22), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(255, 61, 139, 0.2), transparent 55%),
+    radial-gradient(circle at 0% 0%, rgba(33, 230, 193, 0.15), transparent 55%),
+    radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.24), transparent 55%),
     var(--bg-2);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 0 42px rgba(0, 0, 0, 0.35);
   touch-action: none;
   user-select: none;
   cursor: crosshair;
 }
-.moodpad-square.active { border-color: rgba(33, 230, 193, 0.5); }
-.mp-corner {
+.moodpad-square.active { border-color: rgba(255, 255, 255, 0.28); }
+/* Faint crosshair through the neutral centre */
+.moodpad-square::before,
+.moodpad-square::after {
+  content: '';
   position: absolute;
-  font-size: 0.64rem;
-  font-weight: 700;
-  color: var(--ink-dim);
-  max-width: 45%;
-  line-height: 1.2;
-}
-.mp-corner.tl { top: 8px; left: 10px; }
-.mp-corner.tr { top: 8px; right: 10px; text-align: right; }
-.mp-corner.bl { bottom: 8px; left: 10px; }
-.mp-corner.br { bottom: 8px; right: 10px; text-align: right; }
-.mp-axis {
-  position: absolute;
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.07);
   pointer-events: none;
 }
-.mp-axis-x { bottom: 50%; left: 50%; transform: translate(-50%, 50%); }
-.mp-axis-y { top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg); }
+.moodpad-square::before { left: 50%; top: 7%; bottom: 7%; width: 1px; }
+.moodpad-square::after { top: 50%; left: 7%; right: 7%; height: 1px; }
+.mp-corner {
+  position: absolute;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--ink-dim);
+  background: rgba(10, 8, 22, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 3px 8px;
+  max-width: 46%;
+  line-height: 1.2;
+  pointer-events: none;
+  backdrop-filter: blur(3px);
+}
+.mp-corner.tl { top: 8px; left: 8px; }
+.mp-corner.tr { top: 8px; right: 8px; text-align: right; }
+.mp-corner.bl { bottom: 8px; left: 8px; }
+.mp-corner.br { bottom: 8px; right: 8px; text-align: right; }
+/* Where the list's titles actually sit in mood space */
+.mp-ghost {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
 .mp-dot {
   position: absolute;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: var(--neon-2);
-  border: 2px solid #fff;
+  border: 2px solid rgba(255, 255, 255, 0.92);
   transform: translate(-50%, -50%);
   box-shadow: 0 0 16px 4px rgba(33, 230, 193, 0.7);
   pointer-events: none;
-  transition: box-shadow 0.15s;
+  transition: box-shadow 0.15s, background 0.15s;
+}
+.mp-dot::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .mp-dot.idle {
   background: var(--ink-faint);
   box-shadow: none;
-  opacity: 0.6;
+  opacity: 0.55;
 }
+.mp-dot.idle::after { display: none; }
 .moodpad-foot {
   display: flex;
   align-items: center;

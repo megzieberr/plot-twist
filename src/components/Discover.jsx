@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { discoverTmdb, discoverAnilist, enrichTmdb } from '../lib/api.js';
 import { scoreCandidate, whyLine, isExcluded } from '../lib/scorer.js';
-import { titleMoodPos, affinity, blendMood } from '../lib/mood.js';
+import { titleMoodPos, moodFinals } from '../lib/mood.js';
 import MoodPad from './MoodPad.jsx';
 
 // Discover: ranked queue of unrated titles pulled live from the APIs.
@@ -18,16 +18,22 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
     setMoodDot(null);
   }, [media]);
 
-  // The dot re-ranks the deck the same 0.6 taste / 0.4 mood way as the watchlist.
+  // The dot re-ranks the deck the same taste/mood blend as the watchlist —
+  // the further the dot is from centre, the more mood outweighs taste.
   const deck = useMemo(() => {
     if (!queue || !moodDot || queue.length < 2) return queue;
-    const scores = queue.map((c) => c.score);
-    const min = Math.min(...scores);
-    const max = Math.max(...scores);
-    const nb = (s) => (max > min ? (s - min) / (max - min) : 1);
-    const fit = (c) => blendMood(nb(c.score), affinity(moodDot, titleMoodPos(c)));
-    return [...queue].sort((a, b) => fit(b) - fit(a));
+    const finals = moodFinals(queue, moodDot, (c) => c.score);
+    return queue
+      .map((c, i) => ({ c, f: finals[i] }))
+      .sort((a, b) => b.f - a.f)
+      .map((x) => x.c);
   }, [queue, moodDot]);
+
+  // Where this deck's titles sit in mood space — ghost dots on the pad.
+  const moodPoints = useMemo(
+    () => (queue || []).map(titleMoodPos).filter(Boolean),
+    [queue]
+  );
 
   const load = useCallback(async () => {
     if (!ready) return; // ratings still loading — scoring now would be unpersonalized
@@ -71,10 +77,9 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
           const result = scoreCandidate(c, weights, likedGenres);
           return { ...c, score: result.score, why: whyLine(result, c) };
         })
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 40);
+        .sort((a, b) => b.score - a.score);
 
-      setQueue(scored);
+      setQueue(diversifyByGenre(scored, 40));
     } catch (ex) {
       setErr(ex.message);
       setQueue([]);
@@ -113,6 +118,7 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
       <MoodPad
         open={moodOpen}
         dot={moodDot}
+        points={moodPoints}
         onToggle={() => setMoodOpen((o) => !o)}
         onChange={setMoodDot}
         onReset={() => setMoodDot(null)}
@@ -120,6 +126,33 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
       <SwipeDeck queue={deck} onSwipe={handleSwipe} />
     </>
   );
+}
+
+// Greedy genre-diversity pick. A flat top-N by score echo-chambers: the top
+// axes correlate heavily with thriller/mystery, so the deck went wall-to-wall
+// thriller and the watchlist inherited it. Each already-picked card sharing a
+// (primary) genre applies a growing penalty when choosing the next card —
+// strong matches still lead, but the deck mixes in the rest of her taste.
+function diversifyByGenre(sorted, n, penalty = 0.04) {
+  const picked = [];
+  const genreCount = {};
+  const pool = [...sorted];
+  while (picked.length < n && pool.length > 0) {
+    let bestI = 0;
+    let bestV = -Infinity;
+    for (let i = 0; i < pool.length; i++) {
+      let v = pool[i].score;
+      for (const g of (pool[i].genres || []).slice(0, 2)) v -= penalty * (genreCount[g] || 0);
+      if (v > bestV) {
+        bestV = v;
+        bestI = i;
+      }
+    }
+    const c = pool.splice(bestI, 1)[0];
+    for (const g of (c.genres || []).slice(0, 2)) genreCount[g] = (genreCount[g] || 0) + 1;
+    picked.push(c);
+  }
+  return picked;
 }
 
 // Seasons/sequels of an already-rated show are not new discoveries:

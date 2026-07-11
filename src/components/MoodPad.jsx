@@ -1,12 +1,33 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MOOD_CORNERS } from '../lib/mood.js';
+import { MOOD_CORNERS, describeMood } from '../lib/mood.js';
 
 const REMEMBER_KEY = 'pt_mood_dot';
+
+// The glow colours of the four corners (must stay in step with the CSS corner
+// washes) — the dot's own glow is a bilinear blend of them, so dragging toward
+// "Dark & gripping" literally turns the dot pink.
+const CORNER_RGB = {
+  bl: [255, 200, 87], // 🍿 cozy gold
+  br: [255, 61, 139], // 🔪 neon pink
+  tl: [33, 230, 193], // ✨ teal
+  tr: [168, 85, 247], // 🌀 violet
+};
+
+function dotRgb([x, y]) {
+  const u = (x + 1) / 2;
+  const v = (y + 1) / 2;
+  const mix = (a, b, t) => a + (b - a) * t;
+  return [0, 1, 2].map((i) =>
+    Math.round(mix(mix(CORNER_RGB.bl[i], CORNER_RGB.br[i], u), mix(CORNER_RGB.tl[i], CORNER_RGB.tr[i], u), v))
+  );
+}
 
 // XY mood pad. Collapsed by default; expanding reveals a square with a draggable
 // neon dot. Reports the dot position up so the list re-ranks. `dot` is the active
 // position (or null = inactive / pure Phase-2 order). It re-ranks, never hides.
-export default function MoodPad({ open, onToggle, dot, onChange, onReset }) {
+// `points` are the displayed titles' own mood positions, drawn as faint ghost
+// dots so she can see where her list actually lives on the pad.
+export default function MoodPad({ open, onToggle, dot, onChange, onReset, points = [] }) {
   const padRef = useRef(null);
   const active = dot != null;
   // Handle position for rendering: the active dot, else last remembered spot
@@ -41,8 +62,18 @@ export default function MoodPad({ open, onToggle, dot, onChange, onReset }) {
   }
 
   // Convert [-1,1] -> CSS % (y flipped back for the screen).
-  const left = `${((handle[0] + 1) / 2) * 100}%`;
-  const top = `${((1 - handle[1]) / 2) * 100}%`;
+  const toLeft = (x) => `${((x + 1) / 2) * 100}%`;
+  const toTop = (y) => `${((1 - y) / 2) * 100}%`;
+
+  const [r, g, b] = dotRgb(handle);
+  const dotStyle = active
+    ? {
+        left: toLeft(handle[0]),
+        top: toTop(handle[1]),
+        background: `rgb(${r},${g},${b})`,
+        boxShadow: `0 0 18px 5px rgba(${r},${g},${b},0.55)`,
+      }
+    : { left: toLeft(handle[0]), top: toTop(handle[1]) };
 
   return (
     <div className="moodpad">
@@ -61,17 +92,20 @@ export default function MoodPad({ open, onToggle, dot, onChange, onReset }) {
             onPointerUp={onUp}
             onPointerCancel={onUp}
           >
+            {points.map((p, i) => (
+              <span key={i} className="mp-ghost" style={{ left: toLeft(p[0]), top: toTop(p[1]) }} />
+            ))}
             <span className="mp-corner tl">{MOOD_CORNERS.tl}</span>
             <span className="mp-corner tr">{MOOD_CORNERS.tr}</span>
             <span className="mp-corner bl">{MOOD_CORNERS.bl}</span>
             <span className="mp-corner br">{MOOD_CORNERS.br}</span>
-            <span className="mp-axis mp-axis-x">Cozy ⟷ Dark</span>
-            <span className="mp-axis mp-axis-y">Easy ⟷ Mind-bending</span>
-            <span className={`mp-dot ${active ? '' : 'idle'}`} style={{ left, top }} />
+            <span className={`mp-dot ${active ? '' : 'idle'}`} style={dotStyle} />
           </div>
           <div className="moodpad-foot">
             <span className="hint">
-              {active ? 'Re-ranking by mood — worst fit sinks, nothing hides.' : 'Drag the dot to set your mood.'}
+              {active
+                ? describeMood(handle)
+                : 'Drag the dot — the further from centre, the stronger the pull.'}
             </span>
             {active && (
               <button className="mp-reset" onClick={onReset}>Reset</button>

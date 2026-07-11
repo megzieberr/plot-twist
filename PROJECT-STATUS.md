@@ -1,13 +1,28 @@
-# Project status — updated 2026-07-05
+# Project status — updated 2026-07-11
 
 ## Where we are
-Complete and fully live: app on GitHub Pages (megzieberr.github.io/plot-twist),
-TMDB/AniList proxies on the separate CLI-deployed Netlify site `plot-twist-api`.
-The two-target deploy workflow and the seed.json↔taste-brief sync are now written
-down in DEPLOYMENT.md (read that before ANY change to this project).
-Anime now survives AniList outages: search + Discover fall back to Kitsu
-(key-free, CORS-open) whenever AniList errors, switching back automatically
-when AniList recovers.
+Fully live (GitHub Pages app + Netlify `plot-twist-api` proxies, see DEPLOYMENT.md
+before ANY change). Phases 1–4 of the watchlist upgrade shipped 2026-07-09/10:
+Overview sheet, smart watchlist ordering + match chips + genre filter, and the
+mood pad on both watchlist and Discover.
+2026-07-11: mood pad v2 — visual redesign (quadrant colour washes, ghost dots,
+quadrant-tinted handle, live readout), mood ranking rebuilt so the dot actually
+reorders (was: The Dark Knight anchored #1 regardless), and Discover deck
+diversified by genre (was: wall-to-wall thriller/mystery). Verified locally,
+built clean — awaiting Megan's go to commit/push.
+
+## Mood pad v2 / ranking notes (2026-07-11)
+- `moodFinals()` in mood.js is the one shared ranker (watchlist + Discover).
+  Both taste and mood affinity are min-max normalised per displayed list; mood
+  weight scales with dot distance from centre (0.35 → 0.85 at a corner).
+- `titleMoodPos()` = 0.55 × taste-axis centre + 0.45 × genre-tone centre
+  (GENRE_COORDS). Genre anchors warmth; axes alone put Comedy/Family titles in
+  the mind-bender corner (The Sheep Detectives lesson).
+- Discover deck: greedy genre-diversity pick (penalty 0.04 per repeat of a
+  title's first two genres) instead of flat top-40. Dark-genre share of the
+  deck measured 73% → 34%.
+- Bare "Thriller" genre word no longer fires mystery_no_spoonfeed on its own
+  (rule confidence 0.3 → 0.18, below the 0.25 axis threshold).
 
 ## Decisions
 - 2026-07-03: `.upsert()` replaced with find-then-write + error toasts after the
@@ -22,10 +37,24 @@ when AniList recovers.
   external_source 'kitsu' so IDs never collide; Discover's title-name dedup
   keeps rated shows out of the deck across both sources. If both APIs fail,
   AniList's (more informative) error is the one shown.
+- 2026-07-11: mood must be able to WIN. Fixed 60/40 taste/mood with raw
+  (unnormalised) affinity could never dethrone a strong-taste #1; now both
+  signals normalise per list and dragging the dot further from centre gives
+  mood more weight (up to 85/15). "Re-ranks, never hides" still holds.
+- 2026-07-11: a title's mood position blends genre tone with taste axes —
+  axes alone are structural and mis-place warm titles.
+- 2026-07-11: Discover deck picks for genre diversity instead of flat top-40;
+  the taste weights correlate with thriller/mystery, and a pure top-N was an
+  echo chamber that filled the watchlist with thrillers.
+- 2026-07-11: mood pad centre axis labels removed (they overlapped the dot);
+  the four corner pills carry the meaning. Ghost dots show where the list's
+  titles sit; handle glow blends toward the nearest corner's colour.
 
 ## Pending on Megan
-Nothing.
+Mood pad v2 (2026-07-11) is built + verified but uncommitted — say the word
+and it ships (app-only change: commit + push, GitHub Pages auto-deploys,
+Netlify untouched).
 
 ## Next up
-Nothing planned. On the next change: follow DEPLOYMENT.md so neither deploy
-target gets missed.
+Ship mood pad v2, then Megan sanity-checks the new Discover mix and watchlist
+mood ordering on her phone with her real (Supabase) data.

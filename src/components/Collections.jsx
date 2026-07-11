@@ -5,7 +5,7 @@ import { scoreStoredTitle } from '../lib/scorer.js';
 import { qualityMap, getCachedDetail } from '../lib/detailCache.js';
 import { getDetails } from '../lib/api.js';
 import { isLocalMode } from '../lib/backend.js';
-import { titleMoodPos, affinity, blendMood } from '../lib/mood.js';
+import { titleMoodPos, moodFinals } from '../lib/mood.js';
 
 const VERDICT_TABS = ['liked', 'watchlist', 'interested', 'meh', 'skipped', 'disliked', 'avoid'];
 // Verdict tabs where match-based ordering is meaningful (unwatched taste signal).
@@ -80,11 +80,8 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
     const sMax = Math.max(...scores);
     const normBase = (s) => (sMax > sMin ? (s - sMin) / (sMax - sMin) : 1);
 
-    const ranked = list.map((t) => {
-      const nb = normBase(t._score);
-      const final = moodActive ? blendMood(nb, affinity(moodDot, titleMoodPos(t))) : nb;
-      return { t, final };
-    });
+    const finals = moodActive ? moodFinals(list, moodDot, (t) => t._score) : null;
+    const ranked = list.map((t, i) => ({ t, final: finals ? finals[i] : normBase(t._score) }));
 
     if (moodActive) {
       ranked.sort((a, b) => b.final - a.final || byRecency(a.t, b.t));
@@ -111,6 +108,12 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
     }
     return { items: outItems, matchPct: map };
   }, [scored, genre, rankable, sort, moodActive, moodDot]);
+
+  // Where the displayed titles sit in mood space — ghost dots on the pad.
+  const moodPoints = useMemo(
+    () => (showGenres ? items.map(titleMoodPos).filter(Boolean) : []),
+    [items, showGenres]
+  );
 
   // Quietly warm the detail cache for the top of the watchlist so match scores
   // pick up real vote averages without her opening each title. Skip in local
@@ -156,6 +159,7 @@ export default function Collections({ media, ratedTitles, onPick, weights, liked
         <MoodPad
           open={moodOpen}
           dot={moodDot}
+          points={moodPoints}
           onToggle={() => setMoodOpen((o) => !o)}
           onChange={setMoodDot}
           onReset={() => setMoodDot(null)}
