@@ -5,11 +5,11 @@ Fully live (GitHub Pages app + Netlify `plot-twist-api` proxies, see DEPLOYMENT.
 before ANY change). Phases 1–4 of the watchlist upgrade shipped 2026-07-09/10:
 Overview sheet, smart watchlist ordering + match chips + genre filter, and the
 mood pad on both watchlist and Discover.
-2026-07-11: mood pad v2 — visual redesign (quadrant colour washes, ghost dots,
-quadrant-tinted handle, live readout), mood ranking rebuilt so the dot actually
-reorders (was: The Dark Knight anchored #1 regardless), and Discover deck
-diversified by genre (was: wall-to-wall thriller/mystery). Verified locally,
-built clean — awaiting Megan's go to commit/push.
+2026-07-11: mood pad v2 SHIPPED (commit 99e6ac6, Pages deploy verified live) —
+visual redesign (quadrant colour washes, ghost dots, quadrant-tinted handle,
+live readout), mood ranking rebuilt so the dot actually reorders (was: The
+Dark Knight anchored #1 regardless), Discover deck diversified by genre
+(was: wall-to-wall thriller/mystery).
 
 ## Mood pad v2 / ranking notes (2026-07-11)
 - `moodFinals()` in mood.js is the one shared ranker (watchlist + Discover).
@@ -51,10 +51,10 @@ built clean — awaiting Megan's go to commit/push.
   titles sit; handle glow blends toward the nearest corner's colour.
 
 ## Pending on Megan
-Mood pad v2 (2026-07-11) is built + verified but uncommitted — say the word
-and it ships (app-only change: commit + push, GitHub Pages auto-deploys,
-Netlify untouched).
+Sanity-check mood pad v2 on the phone with real data: close and reopen the
+PWA, drag the dot around the watchlist, and load a fresh Discover deck to
+feel the new genre mix.
 
 ## Next up
-Ship mood pad v2, then Megan sanity-checks the new Discover mix and watchlist
-mood ordering on her phone with her real (Supabase) data.
+Nothing planned. If the Discover mix still feels too dark after a few days of
+swiping, tune the diversity penalty (0.04 in Discover.jsx) or GENRE_COORDS.
