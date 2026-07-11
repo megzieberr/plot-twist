@@ -5,6 +5,10 @@ const VERDICTS = [
   { key: 'disliked', label: 'Disliked', emoji: '💔' },
   { key: 'meh', label: 'Meh', emoji: '😐' },
   { key: 'watchlist', label: 'Watchlist', emoji: '🔖' },
+  { key: 'interested', label: 'Interested', emoji: '👀' },
+  // Same verdict as a Discover left-swipe — lets watchlist pruning land in
+  // the "skipped" tab instead of abusing "meh" (which is a taste signal).
+  { key: 'skipped', label: 'Not for me', emoji: '✖️' },
 ];
 
 export default function RateSheet({ item, onClose, onRate }) {
