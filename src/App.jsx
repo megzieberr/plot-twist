@@ -4,10 +4,12 @@ import { computeWeights, likedGenreSet } from './lib/scorer.js';
 import Login from './components/Login.jsx';
 import Library from './components/Library.jsx';
 import Discover from './components/Discover.jsx';
+import Tonight from './components/Tonight.jsx';
 import Collections from './components/Collections.jsx';
 import Settings from './components/Settings.jsx';
 import RateSheet from './components/RateSheet.jsx';
 import OverviewSheet from './components/OverviewSheet.jsx';
+import MoreLikeThis from './components/MoreLikeThis.jsx';
 import Toast from './components/Toast.jsx';
 
 const MEDIA = [
@@ -24,6 +26,7 @@ export default function App() {
   const [ratings, setRatings] = useState([]);
   const [rateTarget, setRateTarget] = useState(null); // candidate/title being rated
   const [overview, setOverview] = useState(null); // { item, showRank } — detail sheet
+  const [mlt, setMlt] = useState(null); // { item } — "More like this" sheet
   const [toast, setToast] = useState(null); // { msg, undo }
   const [showSettings, setShowSettings] = useState(false);
   const [dataReady, setDataReady] = useState(false); // first load done — Discover must wait for it
@@ -140,6 +143,17 @@ export default function App() {
           onRate={rate}
         />
       )}
+      {mode === 'tonight' && (
+        <Tonight
+          media={media}
+          ready={dataReady}
+          ratedTitles={ratedTitles}
+          weights={weights}
+          likedGenres={likedGenres}
+          onRate={rate}
+          onPick={openOverview}
+        />
+      )}
       {mode === 'collections' && (
         <Collections
           media={media}
@@ -157,6 +171,9 @@ export default function App() {
         <button className={mode === 'discover' ? 'active' : ''} onClick={() => setMode('discover')}>
           <span className="ico">🃏</span>Discover
         </button>
+        <button className={mode === 'tonight' ? 'active' : ''} onClick={() => setMode('tonight')}>
+          <span className="ico">🌙</span>Tonight
+        </button>
         <button className={mode === 'collections' ? 'active' : ''} onClick={() => setMode('collections')}>
           <span className="ico">🗂️</span>Collections
         </button>
@@ -173,6 +190,23 @@ export default function App() {
             setOverview(null);
             setRateTarget(item);
           }}
+          onMore={(item) => {
+            setOverview(null);
+            setMlt({ item });
+          }}
+        />
+      )}
+
+      {mlt && (
+        <MoreLikeThis
+          key={`${mlt.item.external_source}:${mlt.item.external_id}`}
+          item={mlt.item}
+          ratedTitles={ratedTitles}
+          weights={weights}
+          likedGenres={likedGenres}
+          onClose={() => setMlt(null)}
+          onOpen={openOverview}
+          onRate={rate}
         />
       )}
 

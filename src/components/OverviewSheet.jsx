@@ -10,7 +10,7 @@ const SOURCE_LABEL = { tmdb: 'TMDB', anilist: 'AniList', kitsu: 'Kitsu' };
 // The detail view: tap a title anywhere (Library / Collections) and see the
 // public rating, release facts, full plot, why it ranks, and top reviews —
 // so a long watchlist becomes a "where do I start" instead of a wall of posters.
-export default function OverviewSheet({ item, onClose, onRate, weights, likedGenres, showRank }) {
+export default function OverviewSheet({ item, onClose, onRate, onMore, weights, likedGenres, showRank }) {
   const [detail, setDetail] = useState(null); // null = still fetching
 
   useEffect(() => {
@@ -101,6 +101,9 @@ export default function OverviewSheet({ item, onClose, onRate, weights, likedGen
           <button className="btn" onClick={() => onRate(item)}>
             {item.verdict ? '✍️ Change verdict' : '⭐ Rate this'}
           </button>
+          {onMore && item.external_id && (
+            <button className="btn ghost" onClick={() => onMore(item)}>🧬 More like this</button>
+          )}
           <button className="btn ghost" onClick={onClose}>Close</button>
         </div>
       </div>

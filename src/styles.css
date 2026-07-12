@@ -125,7 +125,7 @@ body {
   bottom: calc(12px + env(safe-area-inset-bottom));
   width: min(500px, calc(100% - 24px));
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: rgba(20, 16, 36, 0.92);
   backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.09);
@@ -139,7 +139,7 @@ body {
   border: 0;
   color: var(--ink-faint);
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   padding: 10px 0;
   border-radius: 14px;
   cursor: pointer;
@@ -771,3 +771,96 @@ input:focus, select:focus, textarea:focus {
   background: rgba(255, 61, 139, 0.2);
   color: #ffd7e7;
 }
+
+/* ---------- Tonight + More-like-this (recommendation cards) ---------- */
+
+.occasion-row { margin-top: 2px; }
+.moodpad-disabled { opacity: 0.4; pointer-events: none; }
+.tonight-occ-note,
+.mlt-sub {
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  margin: 4px 4px 10px;
+  line-height: 1.45;
+}
+
+.tonight-list,
+.mlt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rec-card {
+  display: flex;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius);
+  padding: 10px;
+  cursor: pointer;
+}
+.rec-card:active { transform: scale(0.995); }
+.rec-poster {
+  width: 62px;
+  height: 92px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--bg-2);
+}
+.rec-poster-fb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+}
+.rec-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.rec-top { display: flex; align-items: baseline; gap: 8px; }
+.rec-name { font-weight: 800; font-size: 0.98rem; line-height: 1.2; min-width: 0; }
+.rec-rating {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--gold);
+  white-space: nowrap;
+}
+.rec-meta { color: var(--ink-dim); font-size: 0.78rem; }
+.rec-badge {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin: 1px 0;
+}
+.rec-badge.wl { background: rgba(148, 61, 255, 0.2); color: #c39bff; }
+.rec-badge.fresh { background: rgba(33, 230, 193, 0.16); color: var(--neon-2); }
+.rec-badge.occ { background: rgba(255, 61, 139, 0.16); color: var(--neon); }
+.rec-why { color: var(--ink-dim); font-size: 0.8rem; line-height: 1.4; }
+.rec-seen {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: var(--bg-2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.tonight-more { margin-top: 14px; }
+
+/* More-like-this sheet */
+.mlt-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.mlt-head .hdr-btn { margin-left: auto; }
+.mlt-tabs { margin-top: 4px; position: sticky; top: 0; }
+.mlt-section { margin-top: 6px; }
+.mlt-section .section-label { margin-left: 2px; }
+

@@ -139,6 +139,181 @@ function recomputeAxes(candidate, keywords) {
 }
 
 // ---------------------------------------------------------------------------
+// Occasion support (Tonight chips) — resolve a keyword NAME to a TMDB keyword
+// id (cached forever locally, one request per name), and pull an occasion-
+// filtered, quality-led candidate pool.
+// ---------------------------------------------------------------------------
+
+const KW_KEY = 'plot_twist_kw_ids';
+
+function kwCache() {
+  try {
+    return JSON.parse(localStorage.getItem(KW_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+// Returns the keyword id (string) or null. Only successful resolutions are
+// cached, so a null from a not-yet-deployed proxy is retried after the deploy.
+export async function resolveKeywordId(name) {
+  const key = String(name).toLowerCase();
+  const cache = kwCache();
+  if (cache[key]) return cache[key];
+  try {
+    const data = await tmdb('search/keyword', { query: name });
+    const results = data.results || [];
+    const exact = results.find((r) => (r.name || '').toLowerCase() === key);
+    const id = (exact || results[0])?.id;
+    if (id != null) {
+      cache[key] = String(id);
+      try {
+        localStorage.setItem(KW_KEY, JSON.stringify(cache));
+      } catch {
+        // best-effort cache
+      }
+      return String(id);
+    }
+    return null;
+  } catch {
+    return null; // proxy not deployed / offline — caller falls back to genres
+  }
+}
+
+// TV uses combined genre names for a few that movies split out.
+const TV_GENRE_ALIAS = {
+  action: 'action & adventure',
+  adventure: 'action & adventure',
+  'sci-fi': 'sci-fi & fantasy',
+  'science fiction': 'sci-fi & fantasy',
+  fantasy: 'sci-fi & fantasy',
+  war: 'war & politics',
+};
+
+function genreNameToId(genreMap, name, tv) {
+  const inv = {};
+  for (const [id, n] of Object.entries(genreMap)) inv[n.toLowerCase()] = id;
+  let key = String(name).toLowerCase();
+  if (tv && TV_GENRE_ALIAS[key] && inv[TV_GENRE_ALIAS[key]]) key = TV_GENRE_ALIAS[key];
+  return inv[key] || null;
+}
+
+// Occasion-specific candidate pool. Hard-filtered by keyword/genre (OR within
+// each), quality-led. vote_count floor is lower than Discover's 200 — occasion
+// niches are small. Two pages by rating + one by popularity, merged + deduped.
+// Throws OCCASION_UNAVAILABLE when neither a keyword id nor a genre id could be
+// applied (e.g. a keyword-only chip before the proxy redeploy) so the caller
+// can show the friendly "needs the updated proxy" message.
+export async function discoverOccasionTmdb(media, { keywordIds = [], genreNames = [], sort } = {}) {
+  const tv = media !== 'movie';
+  const api = tv ? 'tv' : 'movie';
+  const genreMap = await tmdbGenres(api);
+  const genreIds = genreNames.map((n) => genreNameToId(genreMap, n, tv)).filter(Boolean);
+
+  if (keywordIds.length === 0 && genreIds.length === 0) {
+    const err = new Error('OCCASION_UNAVAILABLE');
+    err.code = 'OCCASION_UNAVAILABLE';
+    throw err;
+  }
+
+  const base = { include_adult: 'false', 'vote_count.gte': '100' };
+  if (keywordIds.length) base.with_keywords = keywordIds.join('|'); // OR
+  if (genreIds.length) base.with_genres = genreIds.join('|'); // OR (any of them)
+
+  const requests = [
+    tmdb(`discover/${api}`, { ...base, page: '1', sort_by: 'vote_average.desc' }),
+    tmdb(`discover/${api}`, { ...base, page: '2', sort_by: 'vote_average.desc' }),
+    tmdb(`discover/${api}`, { ...base, page: '1', sort_by: sort || 'popularity.desc' }),
+  ];
+  const results = (await Promise.all(requests)).flatMap((d) => d.results || []);
+  const seen = new Set();
+  const unique = results.filter((r) => !seen.has(r.id) && seen.add(r.id));
+  return unique.map((r) => normalizeTmdb(r, api, genreMap));
+}
+
+// ---------------------------------------------------------------------------
+// "More like this" (TMDB) — recommendations/similar (Same vibe), a genre pool
+// (Same genre), and a person's filmography (Same director / Same creator).
+// The person paths need the widened proxy (Phase 0); until it deploys the proxy
+// returns "path not allowed" and the caller shows a friendly message.
+// ---------------------------------------------------------------------------
+
+function dedupeById(list) {
+  const seen = new Set();
+  return list.filter((r) => r && r.id != null && !seen.has(r.id) && seen.add(r.id));
+}
+
+// Same vibe: recommendations + similar, merged, normalised, top slice enriched.
+export async function similarTmdb(item) {
+  const api = item.media_type === 'movie' ? 'movie' : 'tv';
+  const id = item.external_id;
+  const genreMap = await tmdbGenres(api);
+  const [rec, sim] = await Promise.all([
+    tmdb(`${api}/${id}/recommendations`).catch(() => ({ results: [] })),
+    tmdb(`${api}/${id}/similar`).catch(() => ({ results: [] })),
+  ]);
+  const unique = dedupeById([...(rec.results || []), ...(sim.results || [])]);
+  const normalized = unique.map((r) => normalizeTmdb(r, api, genreMap));
+  const enriched = await Promise.all(normalized.slice(0, 20).map(enrichTmdb));
+  return [...enriched, ...normalized.slice(20)];
+}
+
+// Same genre: high-rated titles sharing any of the source's genres.
+export async function sameGenreTmdb(item) {
+  const api = item.media_type === 'movie' ? 'movie' : 'tv';
+  const genreMap = await tmdbGenres(api);
+  const inv = {};
+  for (const [gid, n] of Object.entries(genreMap)) inv[n.toLowerCase()] = gid;
+  const ids = (item.genres || []).map((g) => inv[String(g).toLowerCase()]).filter(Boolean);
+  if (!ids.length) return [];
+  const base = {
+    with_genres: ids.slice(0, 3).join('|'), // OR — share any of its genres
+    sort_by: 'vote_average.desc',
+    'vote_count.gte': '300',
+    include_adult: 'false',
+  };
+  const [p1, p2] = await Promise.all([
+    tmdb(`discover/${api}`, { ...base, page: '1' }),
+    tmdb(`discover/${api}`, { ...base, page: '2' }),
+  ]);
+  const unique = dedupeById([...(p1.results || []), ...(p2.results || [])]);
+  return unique.map((r) => normalizeTmdb(r, api, genreMap));
+}
+
+// Same director (movies) / Same creator (series). Returns sections, one per
+// person: [{ person, role, items }]. Needs the Phase-0 person-credits path.
+export async function peopleWorksTmdb(item) {
+  const id = item.external_id;
+  if (item.media_type === 'movie') {
+    const genreMap = await tmdbGenres('movie');
+    const credits = await tmdb(`movie/${id}/credits`);
+    const directors = dedupeById((credits.crew || []).filter((c) => c.job === 'Director'));
+    const sections = [];
+    for (const d of directors.slice(0, 3)) {
+      const filmo = await tmdb(`person/${d.id}/movie_credits`);
+      const films = dedupeById(
+        (filmo.crew || []).filter((c) => c.job === 'Director' && String(c.id) !== String(id))
+      );
+      sections.push({ person: d.name, role: 'Directed by', items: films.map((f) => normalizeTmdb(f, 'movie', genreMap)) });
+    }
+    return sections;
+  }
+  // series — created_by lives in the already-allowed tv/{id} detail
+  const genreMap = await tmdbGenres('tv');
+  const detail = await tmdb(`tv/${id}`);
+  const creators = detail.created_by || [];
+  const sections = [];
+  for (const c of creators.slice(0, 3)) {
+    const filmo = await tmdb(`person/${c.id}/tv_credits`);
+    const shows = dedupeById(
+      [...(filmo.crew || []), ...(filmo.cast || [])].filter((s) => String(s.id) !== String(id))
+    );
+    sections.push({ person: c.name, role: 'Created by', items: shows.map((s) => normalizeTmdb(s, 'tv', genreMap)) });
+  }
+  return sections;
+}
+
+// ---------------------------------------------------------------------------
 // AniList (anime) — tags come back with a 0-100 rank, perfect for confidence.
 // ---------------------------------------------------------------------------
 
@@ -238,6 +413,32 @@ export async function discoverAnilist(pages = 3) {
     }
   }
   return out;
+}
+
+// Same vibe (anime): AniList's own recommendations for a title.
+const ANI_REC_QUERY = `query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    recommendations(perPage: 20, sort: RATING_DESC) {
+      nodes { mediaRecommendation { ${ANI_FIELDS} } }
+    }
+  }
+}`;
+
+export async function similarAnilist(id) {
+  const data = await anilist(ANI_REC_QUERY, { id: Number(id) });
+  const nodes = data.Media?.recommendations?.nodes || [];
+  return nodes.map((n) => n.mediaRecommendation).filter(Boolean).map(normalizeAnilist);
+}
+
+// Same genre (anime): highest-scored titles sharing the source's genres.
+export async function sameGenreAnilist(genres) {
+  const g = (genres || []).slice(0, 3);
+  if (!g.length) return [];
+  const data = await anilist(
+    `query ($g: [String]) { Page(perPage: 25) { media(genre_in: $g, type: ANIME, sort: SCORE_DESC) { ${ANI_FIELDS} } } }`,
+    { g }
+  );
+  return (data.Page?.media || []).map(normalizeAnilist);
 }
 
 // ---------------------------------------------------------------------------
