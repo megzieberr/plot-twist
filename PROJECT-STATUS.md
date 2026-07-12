@@ -1,4 +1,4 @@
-# Project status — updated 2026-07-11
+# Project status — updated 2026-07-12
 
 ## Where we are
 Fully live (GitHub Pages app + Netlify `plot-twist-api` proxies, see DEPLOYMENT.md
@@ -56,5 +56,16 @@ PWA, drag the dot around the watchlist, and load a fresh Discover deck to
 feel the new genre mix.
 
 ## Next up
-Nothing planned. If the Discover mix still feels too dark after a few days of
-swiping, tune the diversity penalty (0.04 in Discover.jsx) or GENRE_COORDS.
+**Implement PLAN-tonight-and-more-like-this.md** (approved by Megan 2026-07-12,
+branch `claude/plot-twist-watchlist-ideas-te0xic`): a "Tonight" view (mood pad +
+occasion chips → exactly 5 picks, all public-rated > 6/10, mix of watchlist +
+new, rate-on-the-spot with hole-filling) and a "More like this" sheet (same
+vibe / same genre / same director-or-creator). Division of labour agreed with
+Megan: Opus writes the code from the plan, a separate session audits against
+the plan's §9 checklist afterwards. Phase 0 of the plan touches the Netlify
+proxy whitelist — two-target deploy trap applies; the deploy command will land
+in "Pending on Megan" if the implementing session can't run it.
+
+After that (unscheduled): Megan noticed 4.4/10 titles in Discover — consider
+applying a public-rating floor to the Discover deck too (deliberately left out
+of the plan's scope; her ask was Tonight-only).
