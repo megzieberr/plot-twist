@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { discoverTmdb, discoverAnilist, enrichTmdb } from '../lib/api.js';
 import { scoreCandidate, whyLine, isExcluded } from '../lib/scorer.js';
 import { titleMoodPos, moodFinals } from '../lib/mood.js';
+import { ratedKeySet, ratedNameSet, isSequelOf, diversifyByGenre } from '../lib/pool.js';
 import MoodPad from './MoodPad.jsx';
 
 // Discover: ranked queue of unrated titles pulled live from the APIs.
@@ -41,12 +42,8 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
     setErr('');
     try {
       // Everything already rated (any verdict, incl. avoid) is excluded.
-      const ratedKeys = new Set(
-        ratedTitles.map((t) => `${t.external_source}:${t.external_id}`)
-      );
-      const ratedNames = new Set(
-        ratedTitles.filter((t) => t.media_type === media).map((t) => t.title.toLowerCase())
-      );
+      const ratedKeys = ratedKeySet(ratedTitles);
+      const ratedNames = ratedNameSet(ratedTitles, media);
 
       let pool =
         media === 'anime' ? await discoverAnilist(3) : await discoverTmdb(media, 4);
@@ -126,44 +123,6 @@ export default function Discover({ media, ready, ratedTitles, weights, likedGenr
       <SwipeDeck queue={deck} onSwipe={handleSwipe} />
     </>
   );
-}
-
-// Greedy genre-diversity pick. A flat top-N by score echo-chambers: the top
-// axes correlate heavily with thriller/mystery, so the deck went wall-to-wall
-// thriller and the watchlist inherited it. Each already-picked card sharing a
-// (primary) genre applies a growing penalty when choosing the next card —
-// strong matches still lead, but the deck mixes in the rest of her taste.
-function diversifyByGenre(sorted, n, penalty = 0.04) {
-  const picked = [];
-  const genreCount = {};
-  const pool = [...sorted];
-  while (picked.length < n && pool.length > 0) {
-    let bestI = 0;
-    let bestV = -Infinity;
-    for (let i = 0; i < pool.length; i++) {
-      let v = pool[i].score;
-      for (const g of (pool[i].genres || []).slice(0, 2)) v -= penalty * (genreCount[g] || 0);
-      if (v > bestV) {
-        bestV = v;
-        bestI = i;
-      }
-    }
-    const c = pool.splice(bestI, 1)[0];
-    for (const g of (c.genres || []).slice(0, 2)) genreCount[g] = (genreCount[g] || 0) + 1;
-    picked.push(c);
-  }
-  return picked;
-}
-
-// Seasons/sequels of an already-rated show are not new discoveries:
-// "Attack on Titan Season 3 Part 2" should not resurface when
-// "Attack on Titan" is already rated. A bare prefix is not enough
-// ("From" must not swallow "Frozen"), so require a sequel-ish separator.
-function isSequelOf(candidateTitle, ratedName) {
-  const c = candidateTitle.toLowerCase();
-  if (!c.startsWith(ratedName)) return false;
-  const rest = c.slice(ratedName.length);
-  return /^[\s:–-]+(season|part|movie|final|the movie|\d|ii|iii|iv)/i.test(rest) || /^:\s/.test(rest);
 }
 
 // ---------------------------------------------------------------------------

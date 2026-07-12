@@ -4,6 +4,7 @@ import { computeWeights, likedGenreSet } from './lib/scorer.js';
 import Login from './components/Login.jsx';
 import Library from './components/Library.jsx';
 import Discover from './components/Discover.jsx';
+import Tonight from './components/Tonight.jsx';
 import Collections from './components/Collections.jsx';
 import Settings from './components/Settings.jsx';
 import RateSheet from './components/RateSheet.jsx';
@@ -140,6 +141,17 @@ export default function App() {
           onRate={rate}
         />
       )}
+      {mode === 'tonight' && (
+        <Tonight
+          media={media}
+          ready={dataReady}
+          ratedTitles={ratedTitles}
+          weights={weights}
+          likedGenres={likedGenres}
+          onRate={rate}
+          onPick={openOverview}
+        />
+      )}
       {mode === 'collections' && (
         <Collections
           media={media}
@@ -156,6 +168,9 @@ export default function App() {
         </button>
         <button className={mode === 'discover' ? 'active' : ''} onClick={() => setMode('discover')}>
           <span className="ico">🃏</span>Discover
+        </button>
+        <button className={mode === 'tonight' ? 'active' : ''} onClick={() => setMode('tonight')}>
+          <span className="ico">🌙</span>Tonight
         </button>
         <button className={mode === 'collections' ? 'active' : ''} onClick={() => setMode('collections')}>
           <span className="ico">🗂️</span>Collections

@@ -139,6 +139,99 @@ function recomputeAxes(candidate, keywords) {
 }
 
 // ---------------------------------------------------------------------------
+// Occasion support (Tonight chips) — resolve a keyword NAME to a TMDB keyword
+// id (cached forever locally, one request per name), and pull an occasion-
+// filtered, quality-led candidate pool.
+// ---------------------------------------------------------------------------
+
+const KW_KEY = 'plot_twist_kw_ids';
+
+function kwCache() {
+  try {
+    return JSON.parse(localStorage.getItem(KW_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+// Returns the keyword id (string) or null. Only successful resolutions are
+// cached, so a null from a not-yet-deployed proxy is retried after the deploy.
+export async function resolveKeywordId(name) {
+  const key = String(name).toLowerCase();
+  const cache = kwCache();
+  if (cache[key]) return cache[key];
+  try {
+    const data = await tmdb('search/keyword', { query: name });
+    const results = data.results || [];
+    const exact = results.find((r) => (r.name || '').toLowerCase() === key);
+    const id = (exact || results[0])?.id;
+    if (id != null) {
+      cache[key] = String(id);
+      try {
+        localStorage.setItem(KW_KEY, JSON.stringify(cache));
+      } catch {
+        // best-effort cache
+      }
+      return String(id);
+    }
+    return null;
+  } catch {
+    return null; // proxy not deployed / offline — caller falls back to genres
+  }
+}
+
+// TV uses combined genre names for a few that movies split out.
+const TV_GENRE_ALIAS = {
+  action: 'action & adventure',
+  adventure: 'action & adventure',
+  'sci-fi': 'sci-fi & fantasy',
+  'science fiction': 'sci-fi & fantasy',
+  fantasy: 'sci-fi & fantasy',
+  war: 'war & politics',
+};
+
+function genreNameToId(genreMap, name, tv) {
+  const inv = {};
+  for (const [id, n] of Object.entries(genreMap)) inv[n.toLowerCase()] = id;
+  let key = String(name).toLowerCase();
+  if (tv && TV_GENRE_ALIAS[key] && inv[TV_GENRE_ALIAS[key]]) key = TV_GENRE_ALIAS[key];
+  return inv[key] || null;
+}
+
+// Occasion-specific candidate pool. Hard-filtered by keyword/genre (OR within
+// each), quality-led. vote_count floor is lower than Discover's 200 — occasion
+// niches are small. Two pages by rating + one by popularity, merged + deduped.
+// Throws OCCASION_UNAVAILABLE when neither a keyword id nor a genre id could be
+// applied (e.g. a keyword-only chip before the proxy redeploy) so the caller
+// can show the friendly "needs the updated proxy" message.
+export async function discoverOccasionTmdb(media, { keywordIds = [], genreNames = [], sort } = {}) {
+  const tv = media !== 'movie';
+  const api = tv ? 'tv' : 'movie';
+  const genreMap = await tmdbGenres(api);
+  const genreIds = genreNames.map((n) => genreNameToId(genreMap, n, tv)).filter(Boolean);
+
+  if (keywordIds.length === 0 && genreIds.length === 0) {
+    const err = new Error('OCCASION_UNAVAILABLE');
+    err.code = 'OCCASION_UNAVAILABLE';
+    throw err;
+  }
+
+  const base = { include_adult: 'false', 'vote_count.gte': '100' };
+  if (keywordIds.length) base.with_keywords = keywordIds.join('|'); // OR
+  if (genreIds.length) base.with_genres = genreIds.join('|'); // OR (any of them)
+
+  const requests = [
+    tmdb(`discover/${api}`, { ...base, page: '1', sort_by: 'vote_average.desc' }),
+    tmdb(`discover/${api}`, { ...base, page: '2', sort_by: 'vote_average.desc' }),
+    tmdb(`discover/${api}`, { ...base, page: '1', sort_by: sort || 'popularity.desc' }),
+  ];
+  const results = (await Promise.all(requests)).flatMap((d) => d.results || []);
+  const seen = new Set();
+  const unique = results.filter((r) => !seen.has(r.id) && seen.add(r.id));
+  return unique.map((r) => normalizeTmdb(r, api, genreMap));
+}
+
+// ---------------------------------------------------------------------------
 // AniList (anime) — tags come back with a 0-100 rank, perfect for confidence.
 // ---------------------------------------------------------------------------
 
