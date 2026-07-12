@@ -22,6 +22,13 @@ API base: https://plot-twist-api.netlify.app (site id `5d24ac6e-081f-47e9-8b5a-0
 
 ## 2. API / function change (anything under `netlify/functions/` or `netlify.toml`)
 
+> **The TMDB path whitelist lives in TWO files** and they must stay identical:
+> `netlify/functions/tmdb.mjs` (`ALLOWED`) and the dev mirror in `vite.config.js`
+> (`devApiPlugin` → `ALLOWED`). Add any new TMDB path to **both**, in the **same
+> commit** — otherwise a path works in local dev but returns `400 path not allowed`
+> from the live proxy (or vice-versa). Adding a path also needs the Netlify deploy
+> below before it works in production.
+
 1. Edit the `.mjs` file(s).
 2. Deploy from the repo root: `npx netlify-cli deploy --prod --dir dist`
    - Needs node/npx (node is not on the system PATH on this machine — use the same

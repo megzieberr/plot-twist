@@ -4,11 +4,18 @@
 // (and local dev) are allowed; other origins are not, to keep the proxy
 // from being borrowed by strangers.
 
+// NOTE: this whitelist is duplicated in vite.config.js (devApiPlugin → ALLOWED).
+// The dev mirror and this proxy MUST stay identical — add any path to BOTH in
+// the same commit, or a path works locally but 400s in production (see
+// DEPLOYMENT.md §2).
 const ALLOWED = [
   /^discover\/(movie|tv)$/,
   /^search\/(movie|tv|multi)$/,
   /^(movie|tv)\/\d+$/,
   /^(movie|tv)\/\d+\/(keywords|recommendations|similar|reviews)$/,
+  /^(movie|tv)\/\d+\/credits$/, // director / creator lookup ("More like this")
+  /^person\/\d+\/(movie_credits|tv_credits|combined_credits)$/, // a person's filmography
+  /^search\/keyword$/, // occasion keyword name → TMDB keyword id (Tonight chips)
   /^genre\/(movie|tv)\/list$/,
   /^trending\/(movie|tv)\/(day|week)$/,
 ];

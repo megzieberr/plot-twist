@@ -5,11 +5,15 @@ import react from '@vitejs/plugin-react';
 // works without netlify-cli. TMDB_API_KEY comes from .env (no VITE_ prefix,
 // so it is never exposed to the client bundle).
 function devApiPlugin(env) {
+  // Keep in lockstep with netlify/functions/tmdb.mjs ALLOWED (DEPLOYMENT.md §2).
   const ALLOWED = [
     /^discover\/(movie|tv)$/,
     /^search\/(movie|tv|multi)$/,
     /^(movie|tv)\/\d+$/,
     /^(movie|tv)\/\d+\/(keywords|recommendations|similar|reviews)$/,
+    /^(movie|tv)\/\d+\/credits$/, // director / creator lookup ("More like this")
+    /^person\/\d+\/(movie_credits|tv_credits|combined_credits)$/, // a person's filmography
+    /^search\/keyword$/, // occasion keyword name → TMDB keyword id (Tonight chips)
     /^genre\/(movie|tv)\/list$/,
     /^trending\/(movie|tv)\/(day|week)$/,
   ];
