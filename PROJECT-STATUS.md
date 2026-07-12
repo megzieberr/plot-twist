@@ -77,18 +77,12 @@ Dark Knight anchored #1 regardless), Discover deck diversified by genre
   titles sit; handle glow blends toward the nearest corner's colour.
 
 ## Pending on Megan
-1. **Run the one Netlify command to make the proxy paths live** (needed for
-   Same-director/creator + occasion keyword search). From the repo root:
-   ```
-   npm run build
-   npx netlify-cli deploy --prod --dir dist
-   ```
-   This only ADDS three read-only TMDB paths to the proxy whitelist — it can't
-   break the currently-live app. (Claude can run this for you on request; it
-   wasn't run automatically because the feature is still on a branch awaiting
-   your review.)
+1. ✅ **DONE 2026-07-12** — Netlify proxy deploy run (`npx netlify-cli deploy
+   --prod --dir dist`). The three new paths are live and verified on
+   plot-twist-api (search/keyword, movie/{id}/credits, person/{id}/movie_credits);
+   "Same director" now returns real films (Nolan → Oppenheimer/Inception/…).
 2. **Merge the branch to `main`** when happy → Pages auto-deploys the Tonight +
-   More-like-this app.
+   More-like-this app to your phone. (This is the only step left to go live.)
 3. Phone sanity-check once live: open Tonight, drag the mood dot, try the
    Feel-good chip, tap "More like this" on a film you liked.
 4. (Still open from mood pad v2) feel the new Discover genre mix over a few days.
