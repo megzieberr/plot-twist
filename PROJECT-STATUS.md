@@ -2,7 +2,33 @@
 
 ## Where we are
 Fully live (GitHub Pages app + Netlify `plot-twist-api` proxies, see DEPLOYMENT.md
-before ANY change). Phases 1–4 of the watchlist upgrade shipped 2026-07-09/10:
+before ANY change).
+
+**2026-07-12 — Tonight + More like this BUILT on this branch (not yet live).**
+All three phases of PLAN-tonight-and-more-like-this.md are done, committed, and
+verified in `?local=1` with the seeded profile:
+- **🌙 Tonight** (4th nav tab): exactly 5 picks, every one public-rated > 6/10,
+  mixing watchlist + new finds, shaped by the mood pad OR an occasion chip
+  (Christmas/Spooky/Feel-good/Tearjerker/Date night/Blockbuster). "Seen it"
+  rates on the spot and swaps in a fresh pick; a bad verdict makes the refill
+  deliberately dissimilar. New files: src/lib/{pool,occasions,tonight}.js,
+  src/components/{Tonight,RecCard}.jsx.
+- **🧬 More like this**: button on the Overview sheet → Same vibe (shared-axes
+  reasons) / Same genre / Same director-or-creator. src/components/MoreLikeThis.jsx.
+  Anime hides the director/creator tab.
+- pool.js is a pure refactor of Discover's filter/diversify helpers — Discover
+  is behaviour-unchanged (still no 6/10 gate there; that's Tonight-only by design).
+- Goes live when this branch merges to `main` (Pages auto-deploys the app). The
+  same-director/creator tab and occasion keyword search stay in a friendly
+  "needs the updated proxy" state until the Netlify deploy below is run.
+
+### Tunable knobs added 2026-07-12
+- `QUALITY_GATE = 0.6` in Tonight.jsx + MoreLikeThis.jsx (the > 6/10 promise).
+- `SHARED_AXES_MIN = 2`, `MOOD_DIST_MAX = 0.35` in tonight.js (`tooSimilar`).
+- Occasion rank `0.6 quality / 0.4 taste`; Same-vibe rank `0.5 axisSim / 0.3
+  taste / 0.2 quality`. Occasion `vote_count.gte 100`, Same-genre `300` (api.js).
+
+Phases 1–4 of the watchlist upgrade shipped 2026-07-09/10:
 Overview sheet, smart watchlist ordering + match chips + genre filter, and the
 mood pad on both watchlist and Discover.
 2026-07-11: mood pad v2 SHIPPED (commit 99e6ac6, Pages deploy verified live) —
@@ -51,21 +77,25 @@ Dark Knight anchored #1 regardless), Discover deck diversified by genre
   titles sit; handle glow blends toward the nearest corner's colour.
 
 ## Pending on Megan
-Sanity-check mood pad v2 on the phone with real data: close and reopen the
-PWA, drag the dot around the watchlist, and load a fresh Discover deck to
-feel the new genre mix.
+1. **Run the one Netlify command to make the proxy paths live** (needed for
+   Same-director/creator + occasion keyword search). From the repo root:
+   ```
+   npm run build
+   npx netlify-cli deploy --prod --dir dist
+   ```
+   This only ADDS three read-only TMDB paths to the proxy whitelist — it can't
+   break the currently-live app. (Claude can run this for you on request; it
+   wasn't run automatically because the feature is still on a branch awaiting
+   your review.)
+2. **Merge the branch to `main`** when happy → Pages auto-deploys the Tonight +
+   More-like-this app.
+3. Phone sanity-check once live: open Tonight, drag the mood dot, try the
+   Feel-good chip, tap "More like this" on a film you liked.
+4. (Still open from mood pad v2) feel the new Discover genre mix over a few days.
 
 ## Next up
-**Implement PLAN-tonight-and-more-like-this.md** (approved by Megan 2026-07-12,
-branch `claude/plot-twist-watchlist-ideas-te0xic`): a "Tonight" view (mood pad +
-occasion chips → exactly 5 picks, all public-rated > 6/10, mix of watchlist +
-new, rate-on-the-spot with hole-filling) and a "More like this" sheet (same
-vibe / same genre / same director-or-creator). Division of labour agreed with
-Megan: Opus writes the code from the plan, a separate session audits against
-the plan's §9 checklist afterwards. Phase 0 of the plan touches the Netlify
-proxy whitelist — two-target deploy trap applies; the deploy command will land
-in "Pending on Megan" if the implementing session can't run it.
-
-After that (unscheduled): Megan noticed 4.4/10 titles in Discover — consider
-applying a public-rating floor to the Discover deck too (deliberately left out
-of the plan's scope; her ask was Tonight-only).
+- **Audit pass** against PLAN-tonight-and-more-like-this.md §9 checklist (a
+  separate session, per the agreed division of labour).
+- After that (unscheduled): Megan noticed 4.4/10 titles in Discover — consider
+  a public-rating floor on the Discover deck too (left out of this plan's scope
+  on purpose; her ask was Tonight-only).
