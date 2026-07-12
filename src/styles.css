@@ -852,6 +852,15 @@ input:focus, select:focus, textarea:focus {
 }
 .tonight-more { margin-top: 14px; }
 
-/* More-like-this tabs */
-.mlt-tabs { margin-top: 4px; }
+/* More-like-this sheet */
+.mlt-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.mlt-head .hdr-btn { margin-left: auto; }
+.mlt-tabs { margin-top: 4px; position: sticky; top: 0; }
+.mlt-section { margin-top: 6px; }
+.mlt-section .section-label { margin-left: 2px; }
 

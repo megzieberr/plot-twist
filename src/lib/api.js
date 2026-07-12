@@ -232,6 +232,88 @@ export async function discoverOccasionTmdb(media, { keywordIds = [], genreNames 
 }
 
 // ---------------------------------------------------------------------------
+// "More like this" (TMDB) — recommendations/similar (Same vibe), a genre pool
+// (Same genre), and a person's filmography (Same director / Same creator).
+// The person paths need the widened proxy (Phase 0); until it deploys the proxy
+// returns "path not allowed" and the caller shows a friendly message.
+// ---------------------------------------------------------------------------
+
+function dedupeById(list) {
+  const seen = new Set();
+  return list.filter((r) => r && r.id != null && !seen.has(r.id) && seen.add(r.id));
+}
+
+// Same vibe: recommendations + similar, merged, normalised, top slice enriched.
+export async function similarTmdb(item) {
+  const api = item.media_type === 'movie' ? 'movie' : 'tv';
+  const id = item.external_id;
+  const genreMap = await tmdbGenres(api);
+  const [rec, sim] = await Promise.all([
+    tmdb(`${api}/${id}/recommendations`).catch(() => ({ results: [] })),
+    tmdb(`${api}/${id}/similar`).catch(() => ({ results: [] })),
+  ]);
+  const unique = dedupeById([...(rec.results || []), ...(sim.results || [])]);
+  const normalized = unique.map((r) => normalizeTmdb(r, api, genreMap));
+  const enriched = await Promise.all(normalized.slice(0, 20).map(enrichTmdb));
+  return [...enriched, ...normalized.slice(20)];
+}
+
+// Same genre: high-rated titles sharing any of the source's genres.
+export async function sameGenreTmdb(item) {
+  const api = item.media_type === 'movie' ? 'movie' : 'tv';
+  const genreMap = await tmdbGenres(api);
+  const inv = {};
+  for (const [gid, n] of Object.entries(genreMap)) inv[n.toLowerCase()] = gid;
+  const ids = (item.genres || []).map((g) => inv[String(g).toLowerCase()]).filter(Boolean);
+  if (!ids.length) return [];
+  const base = {
+    with_genres: ids.slice(0, 3).join('|'), // OR — share any of its genres
+    sort_by: 'vote_average.desc',
+    'vote_count.gte': '300',
+    include_adult: 'false',
+  };
+  const [p1, p2] = await Promise.all([
+    tmdb(`discover/${api}`, { ...base, page: '1' }),
+    tmdb(`discover/${api}`, { ...base, page: '2' }),
+  ]);
+  const unique = dedupeById([...(p1.results || []), ...(p2.results || [])]);
+  return unique.map((r) => normalizeTmdb(r, api, genreMap));
+}
+
+// Same director (movies) / Same creator (series). Returns sections, one per
+// person: [{ person, role, items }]. Needs the Phase-0 person-credits path.
+export async function peopleWorksTmdb(item) {
+  const id = item.external_id;
+  if (item.media_type === 'movie') {
+    const genreMap = await tmdbGenres('movie');
+    const credits = await tmdb(`movie/${id}/credits`);
+    const directors = dedupeById((credits.crew || []).filter((c) => c.job === 'Director'));
+    const sections = [];
+    for (const d of directors.slice(0, 3)) {
+      const filmo = await tmdb(`person/${d.id}/movie_credits`);
+      const films = dedupeById(
+        (filmo.crew || []).filter((c) => c.job === 'Director' && String(c.id) !== String(id))
+      );
+      sections.push({ person: d.name, role: 'Directed by', items: films.map((f) => normalizeTmdb(f, 'movie', genreMap)) });
+    }
+    return sections;
+  }
+  // series — created_by lives in the already-allowed tv/{id} detail
+  const genreMap = await tmdbGenres('tv');
+  const detail = await tmdb(`tv/${id}`);
+  const creators = detail.created_by || [];
+  const sections = [];
+  for (const c of creators.slice(0, 3)) {
+    const filmo = await tmdb(`person/${c.id}/tv_credits`);
+    const shows = dedupeById(
+      [...(filmo.crew || []), ...(filmo.cast || [])].filter((s) => String(s.id) !== String(id))
+    );
+    sections.push({ person: c.name, role: 'Created by', items: shows.map((s) => normalizeTmdb(s, 'tv', genreMap)) });
+  }
+  return sections;
+}
+
+// ---------------------------------------------------------------------------
 // AniList (anime) — tags come back with a 0-100 rank, perfect for confidence.
 // ---------------------------------------------------------------------------
 
@@ -331,6 +413,32 @@ export async function discoverAnilist(pages = 3) {
     }
   }
   return out;
+}
+
+// Same vibe (anime): AniList's own recommendations for a title.
+const ANI_REC_QUERY = `query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    recommendations(perPage: 20, sort: RATING_DESC) {
+      nodes { mediaRecommendation { ${ANI_FIELDS} } }
+    }
+  }
+}`;
+
+export async function similarAnilist(id) {
+  const data = await anilist(ANI_REC_QUERY, { id: Number(id) });
+  const nodes = data.Media?.recommendations?.nodes || [];
+  return nodes.map((n) => n.mediaRecommendation).filter(Boolean).map(normalizeAnilist);
+}
+
+// Same genre (anime): highest-scored titles sharing the source's genres.
+export async function sameGenreAnilist(genres) {
+  const g = (genres || []).slice(0, 3);
+  if (!g.length) return [];
+  const data = await anilist(
+    `query ($g: [String]) { Page(perPage: 25) { media(genre_in: $g, type: ANIME, sort: SCORE_DESC) { ${ANI_FIELDS} } } }`,
+    { g }
+  );
+  return (data.Page?.media || []).map(normalizeAnilist);
 }
 
 // ---------------------------------------------------------------------------

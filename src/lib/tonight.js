@@ -5,6 +5,25 @@ import { titleMoodPos } from './mood.js';
 
 export const keyOf = (c) => `${c.external_source}:${c.external_id}`;
 
+// axes may be stored as an array (rated rows) or an object (live candidates).
+export const axesArr = (t) => (Array.isArray(t.axes) ? t.axes : Object.keys(t.axes || {}));
+
+// Axis keys two titles share — the "Same vibe" reason line names these.
+export function sharedAxisKeys(a, b) {
+  const setA = new Set(axesArr(a));
+  return axesArr(b).filter((x) => setA.has(x));
+}
+
+// Jaccard overlap of two titles' axis sets (0..1). Both-empty -> 0.
+export function axisSimilarity(a, b) {
+  const A = new Set(axesArr(a));
+  const B = new Set(axesArr(b));
+  if (A.size === 0 && B.size === 0) return 0;
+  const inter = [...A].filter((x) => B.has(x)).length;
+  const union = new Set([...A, ...B]).size;
+  return union ? inter / union : 0;
+}
+
 // Min-max normalise a list of numbers to 0..1. All-equal / empty -> all 1.
 export function normalize(nums) {
   if (nums.length === 0) return [];
