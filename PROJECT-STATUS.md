@@ -77,15 +77,8 @@ Dark Knight anchored #1 regardless), Discover deck diversified by genre
   titles sit; handle glow blends toward the nearest corner's colour.
 
 ## Pending on Megan
-1. ✅ **DONE 2026-07-12** — Netlify proxy deploy run (`npx netlify-cli deploy
-   --prod --dir dist`). The three new paths are live and verified on
-   plot-twist-api (search/keyword, movie/{id}/credits, person/{id}/movie_credits);
-   "Same director" now returns real films (Nolan → Oppenheimer/Inception/…).
-2. **Merge the branch to `main`** when happy → Pages auto-deploys the Tonight +
-   More-like-this app to your phone. (This is the only step left to go live.)
-3. Phone sanity-check once live: open Tonight, drag the mood dot, try the
-   Feel-good chip, tap "More like this" on a film you liked.
-4. (Still open from mood pad v2) feel the new Discover genre mix over a few days.
+- Nothing — proxy deployed (2026-07-12), branch merged to `main`, Tonight +
+  More-like-this verified working 100% on her phone (Megan, 2026-07-13).
 
 ## Next up
 - **Audit pass** against PLAN-tonight-and-more-like-this.md §9 checklist (a
