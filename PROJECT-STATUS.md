@@ -1,4 +1,4 @@
-# Project status — updated 2026-07-12
+# Project status — updated 2026-07-13
 
 ## Where we are
 Fully live (GitHub Pages app + Netlify `plot-twist-api` proxies, see DEPLOYMENT.md
