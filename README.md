@@ -1,3 +1,9 @@
+# RETIRED 29 Oct 2026 (her call)
+
+GitHub Pages OFF, repo ARCHIVED, Supabase project `plot-twist (budget-plottwist account)` PAUSED 29 Oct 2026 (restorable for about 90 days, then gone; nothing in it worth saving, her call). Local folder moved to `Desktop\Claude Code Projects\_archive\`. The skeleton = this repo + `netlify/` (the plot-twist-api Netlify site holding the TMDB key was DELETED the same day). Do not wake it unless Megan un-retires it.
+
+---
+
 # Plot Twist 🎬
 
 Personal film / series / anime recommender. Single user. Content-based scoring
